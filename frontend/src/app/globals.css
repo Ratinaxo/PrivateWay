@@ -128,3 +128,20 @@
     @apply font-sans;
   }
 }
+/* Presentación segura de Markdown en mensajes: ReactMarkdown no ejecuta HTML sin procesar. */
+.pw-markdown > * + * { margin-top: 0.85rem; }
+.pw-markdown h1, .pw-markdown h2, .pw-markdown h3 { font-weight: 650; line-height: 1.4; margin-top: 1.35rem; }
+.pw-markdown h1 { font-size: 1.3rem; }
+.pw-markdown h2 { font-size: 1.12rem; }
+.pw-markdown h3 { font-size: 1rem; }
+.pw-markdown ul { list-style: disc; padding-left: 1.4rem; }
+.pw-markdown ol { list-style: decimal; padding-left: 1.4rem; }
+.pw-markdown li + li { margin-top: 0.25rem; }
+.pw-markdown p { overflow-wrap: anywhere; }
+.pw-markdown pre { overflow-x: auto; border-radius: 0.9rem; padding: 1rem; background: #1c2925; color: #f0fdf4; font-size: 0.83rem; line-height: 1.65; }
+.pw-markdown :not(pre) > code { background: #f1f5f2; padding: 0.14rem 0.35rem; border-radius: 0.35rem; font-size: 0.85em; }
+.pw-markdown blockquote { border-left: 3px solid #bdcfc5; padding-left: 1rem; color: #575c58; }
+.pw-markdown table { display: block; overflow-x: auto; border-collapse: collapse; max-width: 100%; }
+.pw-markdown th, .pw-markdown td { border: 1px solid #e5e7eb; padding: 0.45rem 0.75rem; text-align: left; }
+.pw-markdown th { background: #f8faf9; }
+.pw-markdown a { color: #047857; text-decoration: underline; }
