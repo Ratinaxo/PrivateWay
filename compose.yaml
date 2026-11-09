@@ -1,0 +1,125 @@
+# PrivateWay - despliegue de laboratorio, NUNCA publicar el puerto HTTP sin TLS.
+# El chat HTTP queda cerrado por el backend hasta integrar el pipeline y OIDC.
+name: privateway
+
+services:
+  proxy:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PRIVATEWAY_HTTP_PORT:-8080}:80"
+    volumes:
+      - ./deployment/nginx/local.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - ingress
+      - private
+    depends_on:
+      frontend:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    init: true
+    environment:
+      GATEWAY_INTERNAL_URL: "http://backend:8000"
+      GATEWAY_CLIENT_TOKEN: "${PRIVATEWAY_GATEWAY_TOKEN:?Define PRIVATEWAY_GATEWAY_TOKEN en el archivo .env}"
+      PRIVATEWAY_DEV_CATALOG: "0"
+      NEXT_TELEMETRY_DISABLED: "1"
+    networks:
+      - private
+    depends_on:
+      backend:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 60s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      GATEWAY_CLIENT_TOKENS: "${PRIVATEWAY_GATEWAY_TOKEN:?Define PRIVATEWAY_GATEWAY_TOKEN en el archivo .env}"
+      GATEWAY_ROUTES_JSON: "${GATEWAY_ROUTES_JSON:?Define GATEWAY_ROUTES_JSON en el archivo .env}"
+      GATEWAY_PROVIDERS_JSON: "${GATEWAY_PROVIDERS_JSON:?Define GATEWAY_PROVIDERS_JSON en el archivo .env}"
+      GATEWAY_ALLOWED_PROVIDER_HOSTS: "${GATEWAY_ALLOWED_PROVIDER_HOSTS:-}"
+      GATEWAY_DEMO_MODE: "${GATEWAY_DEMO_MODE:-0}"
+      GATEWAY_AUDIT_FILE: /var/lib/privateway/audit/events.jsonl
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+    networks:
+      - private
+      - provider_egress
+    volumes:
+      - audit_data:/var/lib/privateway/audit
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # Liveness: /ready devuelve 503 intencionadamente sin pipeline.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).close()"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+  # Opcional y aún NO conectado al código de conversaciones; se habilita explícitamente.
+  postgres:
+    image: pgvector/pgvector:pg17
+    profiles: ["data"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: privateway
+      POSTGRES_USER: privateway
+      POSTGRES_PASSWORD: "${PRIVATEWAY_DB_PASSWORD:-}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U privateway -d privateway"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  ingress:
+    driver: bridge
+  private:
+    driver: bridge
+    internal: true
+  provider_egress:
+    driver: bridge
+
+volumes:
+  audit_data:
+  postgres_data:

@@ -4,6 +4,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+class Accion(str, Enum):
+    PERMITIR = "permitir"
+    SEUDONIMIZAR = "seudonimizar"
+    BLOQUEAR = "bloquear"
+
 
 class Categoria(str, Enum):
     """Clasificación de los datos detectados."""
@@ -13,13 +18,19 @@ class Categoria(str, Enum):
     TELEFONO = "telefono"
 
 
-class Procedencia(str, Enum):
+class EtapaOrigen(str, Enum):
     """Etapa que produjo el hallazgo."""
 
     REGEX = "regex"
     SLM = "slm"
 
-
+@dataclass
+class PromptInicial:
+    id_consulta: str
+    id_sesion: str
+    fecha: str
+    prompt: str
+    
 @dataclass(frozen=True)
 class Hallazgo:
     """Una ocurrencia detectada en la consulta.
@@ -30,11 +41,11 @@ class Hallazgo:
     """
 
     categoria: Categoria
-    valor: str
+    prompt: str
     inicio: int
     fin: int
     reconocedor: str
-    procedencia: Procedencia
+    etapaOrigen: EtapaOrigen
     confianza: float
     verificado: bool = False
 
@@ -43,3 +54,16 @@ class Hallazgo:
             raise ValueError("el tramo del hallazgo es inválido")
         if not 0.0 <= self.confianza <= 1.0:
             raise ValueError("la confianza debe estar entre 0 y 1")
+
+@dataclass
+class EvidenciaRegex:
+    hallazgos_validos: list[Hallazgo]
+    descartados: list[str]
+
+@dataclass
+class EvidenciaSLM:
+    hallazgos: list[Hallazgo]
+    accion_propuesta: Accion
+    rechaza_regex: list[str]
+    referencias_rag: list[str]
+    
