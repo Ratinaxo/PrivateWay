@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from backend!")
+"""Backend de PrivateWay: gateway HTTP y detección local."""

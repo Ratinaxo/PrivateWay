@@ -1,69 +1,40 @@
-"""Tipos que entrega cada etapa de análisis a la siguiente"""
+"""Resultado de detectores locales; los desplazamientos se refieren al texto recibido.
+
+Este contrato NO autoriza transmitir prompts. El gateway aplica la política por separado.
+Evitar imprimir o serializar ``valor`` en auditoría o logs: puede contener PII.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
 
-class Accion(str, Enum):
-    PERMITIR = "permitir"
-    SEUDONIMIZAR = "seudonimizar"
-    BLOQUEAR = "bloquear"
-
 
 class Categoria(str, Enum):
-    """Clasificación de los datos detectados."""
-
     RUN = "run"
     CORREO = "correo"
     TELEFONO = "telefono"
 
 
-class EtapaOrigen(str, Enum):
-    """Etapa que produjo el hallazgo."""
-
+class Procedencia(str, Enum):
     REGEX = "regex"
     SLM = "slm"
 
-@dataclass
-class PromptInicial:
-    id_consulta: str
-    id_sesion: str
-    fecha: str
-    prompt: str
-    
+
 @dataclass(frozen=True)
 class Hallazgo:
-    """Una ocurrencia detectada en la consulta.
-
-    `inicio` y `fin` son índices sobre el texto original, de modo que podamos volver a buscar dentro del prompt
-    `verificado` lo usamos para comprobar el digito verificador con modulo 11 por ahora.
-    
-    """
-
     categoria: Categoria
-    prompt: str
+    valor: str
     inicio: int
     fin: int
     reconocedor: str
-    etapaOrigen: EtapaOrigen
+    procedencia: Procedencia
     confianza: float
     verificado: bool = False
 
     def __post_init__(self) -> None:
         if self.inicio < 0 or self.fin <= self.inicio:
             raise ValueError("el tramo del hallazgo es inválido")
+        if len(self.valor) != self.fin - self.inicio:
+            raise ValueError("el valor del hallazgo no coincide con el tramo")
         if not 0.0 <= self.confianza <= 1.0:
             raise ValueError("la confianza debe estar entre 0 y 1")
-
-@dataclass
-class EvidenciaRegex:
-    hallazgos_validos: list[Hallazgo]
-    descartados: list[str]
-
-@dataclass
-class EvidenciaSLM:
-    hallazgos: list[Hallazgo]
-    accion_propuesta: Accion
-    rechaza_regex: list[str]
-    referencias_rag: list[str]
-    

@@ -42,6 +42,15 @@ services:
       GATEWAY_CLIENT_TOKEN: "${PRIVATEWAY_GATEWAY_TOKEN:?Define PRIVATEWAY_GATEWAY_TOKEN en el archivo .env}"
       PRIVATEWAY_DEV_CATALOG: "0"
       NEXT_TELEMETRY_DISABLED: "1"
+      NEXTAUTH_URL: "http://127.0.0.1:${PRIVATEWAY_HTTP_PORT:-8080}"
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:?Define NEXTAUTH_SECRET en .env}"
+      PRIVATEWAY_OIDC_ISSUER: "http://auth.privateway.test:8081/realms/privateway"
+      PRIVATEWAY_OIDC_CLIENT_ID: "privateway-web"
+      PRIVATEWAY_OIDC_CLIENT_SECRET: "${PRIVATEWAY_OIDC_CLIENT_SECRET:?Define PRIVATEWAY_OIDC_CLIENT_SECRET en .env}"
+      PRIVATEWAY_KEYCLOAK_INTERNAL_URL: "http://keycloak:8081"
+      PRIVATEWAY_KEYCLOAK_REALM: "privateway"
+      PRIVATEWAY_KEYCLOAK_ADMIN_CLIENT_ID: "privateway-admin-api"
+      PRIVATEWAY_KEYCLOAK_ADMIN_CLIENT_SECRET: "${PRIVATEWAY_KEYCLOAK_ADMIN_CLIENT_SECRET:?Define PRIVATEWAY_KEYCLOAK_ADMIN_CLIENT_SECRET en .env}"
     networks:
       - private
     depends_on:
@@ -90,6 +99,72 @@ services:
       retries: 3
       start_period: 25s
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1.4
+    command: ["start-dev", "--http-port=8081"]
+    restart: unless-stopped
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME:-kc-bootstrap}"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD:?Define KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD en .env}"
+      KC_DB: postgres
+      KC_DB_URL: "jdbc:postgresql://keycloak-db:5432/keycloak"
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: "${KEYCLOAK_DB_PASSWORD:?Define KEYCLOAK_DB_PASSWORD en .env}"
+      KC_HOSTNAME: "http://auth.privateway.test:8081"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    networks:
+      private:
+        aliases: ["auth.privateway.test"]
+      ingress: {}
+      auth_data: {}
+    security_opt:
+      - no-new-privileges:true
+
+  keycloak-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: "${KEYCLOAK_DB_PASSWORD:?Define KEYCLOAK_DB_PASSWORD en .env}"
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    networks:
+      - auth_data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+  # Inicializador idempotente. Al terminar, se detiene con código 0.
+  keycloak-init:
+    image: quay.io/keycloak/keycloak:26.1.4
+    entrypoint: ["/bin/bash", "/opt/privateway/bootstrap.sh"]
+    restart: "no"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME:-kc-bootstrap}"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD:?Define KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD en .env}"
+      PRIVATEWAY_OIDC_CLIENT_SECRET: "${PRIVATEWAY_OIDC_CLIENT_SECRET:?Define PRIVATEWAY_OIDC_CLIENT_SECRET en .env}"
+      PRIVATEWAY_KEYCLOAK_ADMIN_CLIENT_SECRET: "${PRIVATEWAY_KEYCLOAK_ADMIN_CLIENT_SECRET:?Define PRIVATEWAY_KEYCLOAK_ADMIN_CLIENT_SECRET en .env}"
+      PRIVATEWAY_HTTP_PORT: "${PRIVATEWAY_HTTP_PORT:-8080}"
+      PRIVATEWAY_FIRST_ADMIN_USERNAME: "${PRIVATEWAY_FIRST_ADMIN_USERNAME:-pwadmin}"
+      PRIVATEWAY_FIRST_ADMIN_PASSWORD: "${PRIVATEWAY_FIRST_ADMIN_PASSWORD:?Define PRIVATEWAY_FIRST_ADMIN_PASSWORD en .env}"
+    volumes:
+      - ./deployment/keycloak/bootstrap.sh:/opt/privateway/bootstrap.sh:ro
+    depends_on:
+      - keycloak
+    networks:
+      - private
+    security_opt:
+      - no-new-privileges:true
   # Opcional y aún NO conectado al código de conversaciones; se habilita explícitamente.
   postgres:
     image: pgvector/pgvector:pg17
@@ -119,7 +194,11 @@ networks:
     internal: true
   provider_egress:
     driver: bridge
+  auth_data:
+    driver: bridge
+    internal: true
 
 volumes:
   audit_data:
   postgres_data:
+  keycloak_db_data:

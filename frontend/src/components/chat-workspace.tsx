@@ -4,28 +4,30 @@ import * as React from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
-  ArrowUp, Check, ChevronDown, ChevronsUpDown, CircleHelp, Copy,
+  ArrowUp, Check, ChevronDown, ChevronsUpDown, Copy,
   LockKeyhole, MessageSquareText, MoreHorizontal, PanelLeftClose,
   PanelLeftOpen, Pencil, Plus, Search, ShieldCheck, ShieldOff, Trash2, X,
-  CircleUserRound, Settings, LogOut,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ProfileMenu, UserAvatar } from "@/components/profile-menu"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-
-import {
-  DEMO_CONVERSATIONS, DEMO_PROVIDERS, modelName, providerName,
-  type ChatMessage, type Conversation,
-} from "@/lib/chat-demo"
+  type ChatMessage, type Conversation, type Provider,
+} from "@/lib/chat"
 
 const MAX_PROMPT_LENGTH = 12_000
+
+const ERROR_TEXT: Record<string, string> = {
+  AUTENTICACION_NO_CONFIGURADA: "El inicio de sesión no está configurado.",
+  NO_AUTENTICADO: "Tu sesión ha expirado. Inicia sesión para continuar.",
+  CHAT_CERRADO_SIN_AUTENTICACION: "Envío deshabilitado: se requiere iniciar sesión.",
+  ANALISIS_NO_DISPONIBLE: "El pipeline todavía no está configurado. La solicitud fue detenida antes de contactar al proveedor.",
+  POLITICA_BLOQUEA: "La política de seguridad bloqueó la transmisión del mensaje.",
+  FALLO_VALIDACION: "No se pudo validar de forma segura el análisis. La solicitud se ha bloqueado.",
+  AUDITORIA_NO_DISPONIBLE: "La auditoría no está disponible; no se autoriza la operación.",
+  MODELO_NO_AUTORIZADO: "El modelo seleccionado no está autorizado por el gateway.",
+  PROVEEDOR_NO_DISPONIBLE: "No se pudo completar la operación con el proveedor externo.",
+  FALLO_POSPROCESAMIENTO: "La respuesta externa no superó el posprocesamiento seguro.",
+}
 
 function makeId() {
   return crypto.randomUUID()
@@ -128,77 +130,26 @@ function Message({ message }: { message: ChatMessage }) {
   }
   return (
     <div className="group py-4">
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-stone-800"><span className="flex size-7 items-center justify-center rounded-lg bg-emerald-900 text-white"><ShieldCheck className="size-4" /></span> PrivateWay <span className="font-normal text-stone-400">· muestra</span></div>
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-stone-800"><span className="flex size-7 items-center justify-center rounded-lg bg-emerald-900 text-white"><ShieldCheck className="size-4" /></span> PrivateWay <span className="font-normal text-stone-400">· gateway</span></div>
       <div className="pw-markdown text-[14px] leading-7 text-stone-800"><ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml>{message.content}</ReactMarkdown></div>
-      <button className="mt-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-stone-400 hover:bg-stone-100 hover:text-stone-700 focus-visible:outline-2" aria-label="Copiar respuesta de ejemplo" onClick={async () => {
+      <button className="mt-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-stone-400 hover:bg-stone-100 hover:text-stone-700 focus-visible:outline-2" aria-label="Copiar respuesta" onClick={async () => {
         try { await navigator.clipboard.writeText(message.content); setCopied(true) } catch { setCopied(false) }
       }}>{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}{copied ? "Copiado" : "Copiar"}</button>
     </div>
   )
 }
 
-function ProfileMenu() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            aria-label="Abrir menú de perfil"
-            className="flex size-9 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-stone-700 transition-colors hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
-          />
-        }
-      >
-        <CircleUserRound className="size-5" />
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>
-            <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium">
-                Usuario de demostración
-              </span>
-              <span className="text-xs font-normal text-muted-foreground">
-                Sin sesión corporativa
-              </span>
-            </div>
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuGroup>
-          <DropdownMenuItem disabled>
-            <CircleUserRound className="size-4" />
-            Mi perfil
-          </DropdownMenuItem>
-
-          <DropdownMenuItem disabled>
-            <Settings className="size-4" />
-            Configuración
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuGroup>
-          <DropdownMenuItem disabled>
-            <LogOut className="size-4" />
-            Cerrar sesión
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-export function ChatWorkspace() {
-  const [chats, setChats] = React.useState<Conversation[]>(DEMO_CONVERSATIONS)
+export function ChatWorkspace({ user }: { user: { name: string; email: string | null; isAdmin: boolean } }) {
+  const [chats, setChats] = React.useState<Conversation[]>([])
+  const [providers, setProviders] = React.useState<Provider[]>([])
+  const [catalogError, setCatalogError] = React.useState<string | null>(null)
+  const [catalogLoading, setCatalogLoading] = React.useState(true)
+  const [sending, setSending] = React.useState(false)
+  const sendingRef = React.useRef(false)
   const todayStart = useTodayStart()
   const [activeId, setActiveId] = React.useState<string | null>(null)
-  const [providerId, setProviderId] = React.useState(DEMO_PROVIDERS[0].id)
-  const [modelId, setModelId] = React.useState(DEMO_PROVIDERS[0].models[0].id)
+  const [providerId, setProviderId] = React.useState("")
+  const [modelId, setModelId] = React.useState("")
   const [draft, setDraft] = React.useState("")
   const [search, setSearch] = React.useState("")
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
@@ -209,7 +160,9 @@ export function ChatWorkspace() {
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
   const activeChat = chats.find((chat) => chat.id === activeId) ?? null
-  const selectedProvider = DEMO_PROVIDERS.find((provider) => provider.id === providerId) ?? DEMO_PROVIDERS[0]
+  const selectedProvider = providers.find((provider) => provider.id === providerId)
+  const providerLabel = (id: string) => providers.find((provider) => provider.id === id)?.label ?? "Proveedor no disponible"
+  const modelLabel = (provider: string, model: string) => providers.find((p) => p.id === provider)?.models.find((m) => m.id === model)?.label ?? "Modelo no disponible"
   const currentProvider = activeChat?.providerId ?? providerId
   const currentModel = activeChat?.modelId ?? modelId
   const visibleChats = [...chats].filter((chat) => chat.title.toLocaleLowerCase("es").includes(search.toLocaleLowerCase("es"))).sort((a, b) => b.updatedAt - a.updatedAt)
@@ -221,6 +174,31 @@ export function ChatWorkspace() {
       ),
     }))
     .filter((group) => group.items.length)
+
+  React.useEffect(() => {
+    const controller = new AbortController()
+    void fetch("/api/privateway/models", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("CATALOGO_NO_DISPONIBLE")
+        const data: unknown = await response.json()
+        if (!data || typeof data !== "object" || !("providers" in data) || !Array.isArray(data.providers)) {
+          throw new Error("CATALOGO_INVALIDO")
+        }
+        const items = data.providers as Provider[]
+        if (items.length === 0 || !items.every((p) => typeof p.id === "string" && typeof p.label === "string" &&
+          Array.isArray(p.models) && p.models.length > 0 && p.models.every((m) => typeof m.id === "string" && typeof m.label === "string"))) {
+          throw new Error("CATALOGO_INVALIDO")
+        }
+        if (controller.signal.aborted) return
+        setProviders(items)
+        setProviderId(items[0].id)
+        setModelId(items[0].models[0].id)
+        setCatalogError(null)
+      })
+      .catch(() => { if (!controller.signal.aborted) setCatalogError("No se pudo cargar el catálogo autorizado de modelos.") })
+      .finally(() => { if (!controller.signal.aborted) setCatalogLoading(false) })
+    return () => controller.abort()
+  }, [])
 
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
@@ -253,25 +231,67 @@ export function ChatWorkspace() {
     setMobileOpen(false)
   }
 
-  const send = (event?: React.FormEvent) => {
+  const send = async (event?: React.FormEvent) => {
     event?.preventDefault()
     const content = draft.trim()
-    if (!content || content.length > MAX_PROMPT_LENGTH) return
+    if (sendingRef.current || !content || content.length > MAX_PROMPT_LENGTH || !currentModel) return
+    const history = activeChat?.messages.filter((message) => message.role === "user" || message.role === "assistant") ?? []
+    if (history.length >= 30) return
+
+    sendingRef.current = true
+    setSending(true)
     const now = Date.now()
+    const chatId = activeChat?.id ?? makeId()
     const input: ChatMessage = { id: makeId(), role: "user", content, createdAt: now }
-    const warning: ChatMessage = {
-      id: makeId(), role: "notice", noticeType: "info", createdAt: now + 1,
-      content: "Modo demostración: este mensaje permanece únicamente en la memoria de esta pestaña. No se ha enviado al gateway ni a ningún proveedor y no se ha realizado análisis de datos personales.",
-    }
     if (activeChat) {
-      setChats((previous) => previous.map((chat) => chat.id === activeChat.id ? { ...chat, updatedAt: now, messages: [...chat.messages, input, warning] } : chat))
+      setChats((previous) => previous.map((chat) => chat.id === chatId ? { ...chat, updatedAt: now, messages: [...chat.messages, input] } : chat))
     } else {
-      const id = makeId()
-      setChats((previous) => [{ id, title: content.length > 46 ? `${content.slice(0, 46)}…` : content, providerId, modelId, createdAt: now, updatedAt: now, messages: [input, warning] }, ...previous])
-      setActiveId(id)
+      setChats((previous) => [{ id: chatId, title: content.length > 46 ? `${content.slice(0, 46)}…` : content,
+        providerId: currentProvider, modelId: currentModel, createdAt: now, updatedAt: now, messages: [input] }, ...previous])
+      setActiveId(chatId)
     }
     setDraft("")
-    textareaRef.current?.focus()
+    const addMessage = (message: ChatMessage) => {
+      setChats((previous) => previous.map((chat) => chat.id === chatId
+        ? { ...chat, updatedAt: message.createdAt, messages: [...chat.messages, message] } : chat))
+    }
+    try {
+      const response = await fetch("/api/privateway/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          model: currentModel,
+          messages: [...history.map((m) => ({ role: m.role, content: m.content })), { role: "user", content }],
+          stream: false,
+        }),
+      })
+      const data: unknown = await response.json()
+      if (!response.ok) {
+        const errorCode = data && typeof data === "object" && "error" in data && data.error &&
+          typeof data.error === "object" && "code" in data.error && typeof data.error.code === "string"
+          ? data.error.code : "FALLO_BRIDGE"
+        addMessage({ id: makeId(), role: "notice", noticeType: errorCode === "POLITICA_BLOQUEA" ? "blocked" : "error", createdAt: Date.now(),
+          content: Object.prototype.hasOwnProperty.call(ERROR_TEXT, errorCode) ? ERROR_TEXT[errorCode] : "No se completó el envío. Consulta el estado del gateway." })
+        return
+      }
+      if (!data || typeof data !== "object" || !("respuesta" in data) || !data.respuesta ||
+        typeof data.respuesta !== "object" || !("choices" in data.respuesta) || !Array.isArray(data.respuesta.choices) ||
+        typeof data.respuesta.choices[0]?.message?.content !== "string") throw new Error("RESPUESTA_INVALIDA")
+      addMessage({ id: makeId(), role: "assistant", createdAt: Date.now(), content: data.respuesta.choices[0].message.content })
+      if ("decision" in data && data.decision && typeof data.decision === "object" &&
+        "accion" in data.decision && data.decision.accion === "seudonimizar") {
+        addMessage({ id: makeId(), role: "notice", noticeType: "protected", createdAt: Date.now(),
+          content: "El gateway aplicó seudonimización antes de enviar la solicitud." })
+      }
+    } catch {
+      addMessage({ id: makeId(), role: "notice", noticeType: "error", createdAt: Date.now(),
+        content: "No se pudo completar la comunicación con el gateway. No se puede confirmar si ocurrió una transmisión." })
+    } finally {
+      sendingRef.current = false
+      setSending(false)
+      textareaRef.current?.focus()
+    }
   }
 
   const renameChat = () => {
@@ -305,31 +325,31 @@ export function ChatWorkspace() {
           {grouped.map((group) => (
             <section key={group.name} className="mb-6"><h2 className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-stone-400">{group.name}</h2><div className="space-y-1">{group.items.map((chat) => (
               <div key={chat.id} className={`group flex min-h-13 items-center gap-2 rounded-xl p-1 pr-1.5 transition-colors ${chat.id === activeId ? "bg-white shadow-sm ring-1 ring-stone-200" : "hover:bg-stone-200/70"}`}>
-                <button onClick={() => selectChat(chat.id)} className="min-w-0 flex flex-1 items-start gap-2.5 rounded-lg px-2 py-1.5 text-left focus-visible:outline-2 focus-visible:outline-emerald-700"><MessageSquareText className={`mt-0.5 size-4 shrink-0 ${chat.id === activeId ? "text-emerald-800" : "text-stone-400"}`} /><span className="min-w-0"><span className="block truncate text-[13px] font-medium text-stone-750">{chat.title}</span><span className="block truncate pt-1 text-[11px] text-stone-500">{providerName(chat.providerId)} · {modelName(chat.providerId, chat.modelId)}</span></span></button>
+                <button onClick={() => selectChat(chat.id)} className="min-w-0 flex flex-1 items-start gap-2.5 rounded-lg px-2 py-1.5 text-left focus-visible:outline-2 focus-visible:outline-emerald-700"><MessageSquareText className={`mt-0.5 size-4 shrink-0 ${chat.id === activeId ? "text-emerald-800" : "text-stone-400"}`} /><span className="min-w-0"><span className="block truncate text-[13px] font-medium text-stone-750">{chat.title}</span><span className="block truncate pt-1 text-[11px] text-stone-500">{providerLabel(chat.providerId)} · {modelLabel(chat.providerId, chat.modelId)}</span></span></button>
                 <ConversationMenu onRename={() => { setRenameId(chat.id); setRenameDraft(chat.title) }} onDelete={() => setDeleteId(chat.id)} />
               </div>
             ))}</div></section>
           ))}
         </div>
-        <div className="border-t border-stone-200 p-4"><div className="flex items-center gap-3"><span className="flex size-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-800">PW</span><div className="min-w-0 flex-1"><div className="text-xs font-semibold">Entorno de demostración</div><div className="text-[11px] text-stone-500">Sin sesión corporativa</div></div><CircleHelp className="size-4 text-stone-400" /></div></div>
+        <div className="border-t border-stone-200 p-4"><div className="flex items-center gap-3"><UserAvatar name={user.name} /><div className="min-w-0 flex-1"><div className="truncate text-xs font-semibold">{user.name}</div><div className="truncate text-[11px] text-stone-500">{user.email ?? "Identidad corporativa"}</div></div></div></div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-17 shrink-0 items-center justify-between border-b border-stone-100 px-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3"><button aria-label="Abrir barra lateral" onClick={() => { setSidebarOpen(true); setMobileOpen(true) }} className={`rounded-lg p-2 text-stone-500 hover:bg-stone-100 ${sidebarOpen ? "lg:hidden" : ""}`}><PanelLeftOpen className="size-5" /></button><div className="min-w-0"><div className="truncate text-sm font-semibold">{activeChat?.title ?? "Nueva conversación"}</div><div className="mt-0.5 text-[11px] text-stone-400">{activeChat ? `${providerName(currentProvider)} · ${modelName(currentProvider, currentModel)}` : "Selecciona un proveedor y un modelo para empezar"}</div></div></div>
+          <div className="flex min-w-0 items-center gap-3"><button aria-label="Abrir barra lateral" onClick={() => { setSidebarOpen(true); setMobileOpen(true) }} className={`rounded-lg p-2 text-stone-500 hover:bg-stone-100 ${sidebarOpen ? "lg:hidden" : ""}`}><PanelLeftOpen className="size-5" /></button><div className="min-w-0"><div className="truncate text-sm font-semibold">{activeChat?.title ?? "Nueva conversación"}</div><div className="mt-0.5 text-[11px] text-stone-400">{activeChat ? `${providerLabel(currentProvider)} · ${modelLabel(currentProvider, currentModel)}` : "Selecciona un proveedor y un modelo para empezar"}</div></div></div>
           <div className="flex items-center gap-3">
             <span className="hidden items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-800 sm:inline-flex">
-              <span className="size-1.5 rounded-full bg-amber-500" /> DEMO SIN CONEXION
+              <span className="size-1.5 rounded-full bg-amber-500" /> OIDC ACTIVO · PIPELINE PENDIENTE
             </span>
-            <ProfileMenu />
+            <ProfileMenu name={user.name} email={user.email} isAdmin={user.isAdmin} />
           </div>
         </header>
 
         <main ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto scroll-smooth px-4" aria-label="Mensajes de la conversación">
           {activeChat ? (
-            <div className="mx-auto max-w-3xl pb-10 pt-7 sm:pt-10"><div className="mb-6 flex items-center gap-2 border-b border-stone-100 pb-5 text-xs text-stone-400"><ShieldCheck className="size-4" /> Conversación de ejemplo · La protección real todavía no está conectada</div>{activeChat.messages.map((message) => <Message key={message.id} message={message} />)}</div>
+            <div className="mx-auto max-w-3xl pb-10 pt-7 sm:pt-10"><div className="mb-6 flex items-center gap-2 border-b border-stone-100 pb-5 text-xs text-stone-400"><ShieldCheck className="size-4" /> Conversación local · El gateway bloquea los envíos hasta integrar el pipeline</div>{activeChat.messages.map((message) => <Message key={message.id} message={message} />)}</div>
           ) : (
-            <div className="mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center pb-10 text-center"><div className="mb-5 flex size-16 items-center justify-center rounded-[22px] bg-emerald-950 text-white shadow-[0_14px_35px_-15px_rgba(6,78,59,0.65)]"><ShieldCheck className="size-8" /></div><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-800">Un solo lugar para tus conversaciones</p><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">¿En qué puedo ayudarte?</h1><p className="mt-3 max-w-lg text-sm leading-7 text-stone-500">Organiza tus conversaciones con distintos proveedores en un único espacio.</p><div className="mt-8 grid w-full max-w-xl gap-3 text-left sm:grid-cols-2"><div className="rounded-2xl border border-stone-200 bg-white p-4"><ShieldCheck className="mb-3 size-5 text-emerald-800" /><div className="text-sm font-medium">Diseñado para proteger</div><p className="mt-1 text-xs leading-5 text-stone-500">El sistema se encarga de prevenir filtración de datos personales e información confidencial de la organización.</p></div><div className="rounded-2xl border border-stone-200 bg-white p-4"><MessageSquareText className="mb-3 size-5 text-emerald-800" /><div className="text-sm font-medium">Historial unificado</div><p className="mt-1 text-xs leading-5 text-stone-500">Explora tus conversaciones de distintos chats desde la barra lateral.</p></div></div></div>
+            <div className="mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center pb-10 text-center"><div className="mb-5 flex size-16 items-center justify-center rounded-[22px] bg-emerald-950 text-white shadow-[0_14px_35px_-15px_rgba(6,78,59,0.65)]"><ShieldCheck className="size-8" /></div><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-800">Un solo lugar para tus conversaciones</p><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">¿En qué puedo ayudarte?</h1><p className="mt-3 max-w-lg text-sm leading-7 text-stone-500">Organiza tus conversaciones con distintos proveedores en un único espacio.</p><div className="mt-8 grid w-full max-w-xl gap-3 text-left sm:grid-cols-2"><div className="rounded-2xl border border-stone-200 bg-white p-4"><ShieldCheck className="mb-3 size-5 text-emerald-800" /><div className="text-sm font-medium">Diseñado para proteger</div><p className="mt-1 text-xs leading-5 text-stone-500">El gateway está diseñado para evaluar y proteger los prompts antes de transmitirlos. La política de protección está en desarrollo.</p></div><div className="rounded-2xl border border-stone-200 bg-white p-4"><MessageSquareText className="mb-3 size-5 text-emerald-800" /><div className="text-sm font-medium">Historial unificado</div><p className="mt-1 text-xs leading-5 text-stone-500">Explora tus conversaciones de distintos chats desde la barra lateral.</p></div></div></div>
           )}
         </main>
 
@@ -337,11 +357,11 @@ export function ChatWorkspace() {
           <div className="mx-auto max-w-3xl"><form onSubmit={send} className="overflow-hidden rounded-[20px] border border-stone-200 bg-white shadow-[0_7px_35px_-17px_rgba(0,0,0,0.22)] focus-within:border-stone-300 focus-within:ring-2 focus-within:ring-emerald-900/10">
             <label htmlFor="prompt" className="sr-only">Escribe tu mensaje</label><textarea id="prompt" ref={textareaRef} className="block max-h-48 min-h-22 w-full resize-y bg-transparent px-4 pt-4 text-[14px] leading-6 outline-none placeholder:text-stone-400 sm:px-5" placeholder="Escribe un mensaje..." value={draft} maxLength={MAX_PROMPT_LENGTH} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send() } }} />
             <div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-3 sm:px-4"><div className="flex min-w-0 flex-wrap gap-2">
-              <label className="relative inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs text-stone-700"><span className="sr-only">Proveedor</span>{activeChat ? <LockKeyhole className="size-3.5 text-stone-400" /> : <ChevronDown className="size-3.5 text-stone-400" />}<select aria-label="Proveedor" disabled={!!activeChat} className="max-w-32 appearance-none bg-transparent pr-1 font-medium outline-none disabled:cursor-not-allowed sm:max-w-none" value={currentProvider} onChange={(event) => { const next = DEMO_PROVIDERS.find((item) => item.id === event.target.value); if (!next) return; setProviderId(next.id); setModelId(next.models[0].id) }}>{DEMO_PROVIDERS.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select></label>
-              <label className="relative inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs text-stone-700"><span className="sr-only">Modelo</span>{activeChat ? <LockKeyhole className="size-3.5 text-stone-400" /> : <ChevronsUpDown className="size-3.5 text-stone-400" />}<select aria-label="Modelo" disabled={!!activeChat} className="max-w-35 appearance-none bg-transparent pr-1 font-medium outline-none disabled:cursor-not-allowed sm:max-w-none" value={currentModel} onChange={(event) => setModelId(event.target.value)}>{(activeChat ? DEMO_PROVIDERS.find((provider) => provider.id === currentProvider)?.models ?? [] : selectedProvider.models).map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}</select></label>
+              <label className="relative inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs text-stone-700"><span className="sr-only">Proveedor</span>{activeChat ? <LockKeyhole className="size-3.5 text-stone-400" /> : <ChevronDown className="size-3.5 text-stone-400" />}<select aria-label="Proveedor" disabled={!!activeChat || catalogLoading || !!catalogError} className="max-w-32 appearance-none bg-transparent pr-1 font-medium outline-none disabled:cursor-not-allowed sm:max-w-none" value={currentProvider} onChange={(event) => { const next = providers.find((item) => item.id === event.target.value); if (!next) return; setProviderId(next.id); setModelId(next.models[0].id) }}>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select></label>
+              <label className="relative inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs text-stone-700"><span className="sr-only">Modelo</span>{activeChat ? <LockKeyhole className="size-3.5 text-stone-400" /> : <ChevronsUpDown className="size-3.5 text-stone-400" />}<select aria-label="Modelo" disabled={!!activeChat || catalogLoading || !!catalogError} className="max-w-35 appearance-none bg-transparent pr-1 font-medium outline-none disabled:cursor-not-allowed sm:max-w-none" value={currentModel} onChange={(event) => setModelId(event.target.value)}>{(activeChat ? providers.find((provider) => provider.id === currentProvider)?.models ?? [] : selectedProvider?.models ?? []).map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}</select></label>
               {activeChat && <span className="hidden items-center text-[11px] text-stone-400 md:inline-flex">Fijos en este chat</span>}
-            </div><Button type="submit" disabled={!draft.trim() || draft.trim().length > MAX_PROMPT_LENGTH} aria-label="Añadir mensaje de demostración" className="size-9 rounded-xl bg-emerald-900 p-0 text-white hover:bg-emerald-800 disabled:opacity-40"><ArrowUp className="size-4" /></Button></div>
-          </form><p className="mt-2 text-center text-[11px] leading-5 text-stone-400">Modo demo: no ingreses información personal o confidencial. No se envían mensajes a proveedores.</p></div>
+            </div><Button type="submit" disabled={sending || !currentModel || !draft.trim() || draft.trim().length > MAX_PROMPT_LENGTH} aria-label="Enviar al gateway protegido" className="size-9 rounded-xl bg-emerald-900 p-0 text-white hover:bg-emerald-800 disabled:opacity-40"><ArrowUp className="size-4" /></Button></div>
+          </form><p className="mt-2 text-center text-[11px] leading-5 text-stone-400">{catalogError ?? (sending ? "Procesando solicitud en el gateway…" : "Sesión OIDC activa. No introduzcas datos sensibles: la transmisión externa continúa bloqueada hasta integrar y validar el pipeline.")}</p></div>
         </div>
       </div>
 

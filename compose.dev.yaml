@@ -8,6 +8,7 @@ services:
     environment:
       NODE_ENV: development
       PRIVATEWAY_DEV_CATALOG: "1"
+      PRIVATEWAY_DEV_CHAT_BRIDGE: "${PRIVATEWAY_DEV_CHAT_BRIDGE:-0}"
     volumes:
       # Recarga de cambios en los componentes y rutas del frontend.
       # Si cambian package.json, lockfile o next.config.ts: reconstruir imagen.

@@ -42,7 +42,22 @@ async function requestGateway(path: "/api/v1/models" | "/api/v1/secure-chat", bo
     throw new GatewayBridgeError("GATEWAY_INACCESIBLE", 502)
   }
   if (!response.ok) {
-    throw new GatewayBridgeError("GATEWAY_RESPONDIO_ERROR", response.status)
+    // Conservar únicamente un código de error sintético del gateway.
+    // Nunca devolver detalles HTTP, credenciales o el prompt en el BFF.
+    let code = "GATEWAY_RESPONDIO_ERROR"
+    if (response.headers.get("content-type")?.includes("application/json")) {
+      try {
+        const data: unknown = await response.json()
+        if (data && typeof data === "object" && "error" in data) {
+          const error = data.error
+          if (error && typeof error === "object" && "code" in error &&
+              typeof error.code === "string" && /^[A-Z_]{2,64}$/.test(error.code)) {
+            code = error.code
+          }
+        }
+      } catch { /* Nunca mostrar errores crudos */ }
+    }
+    throw new GatewayBridgeError(code, response.status >= 400 && response.status <= 599 ? response.status : 502)
   }
   if (!response.headers.get("content-type")?.includes("application/json")) {
     throw new GatewayBridgeError("GATEWAY_RESPUESTA_INVALIDA", 502)
@@ -76,5 +91,26 @@ export async function getGatewayCatalog(): Promise<GatewayCatalog> {
 }
 
 export async function sendProtectedChat(body: GatewayChatRequest): Promise<GatewayChatResponse> {
-  return (await requestGateway("/api/v1/secure-chat", body)) as GatewayChatResponse
+  const data = await requestGateway("/api/v1/secure-chat", body)
+  if (!data || typeof data !== "object" || !("respuesta" in data) || !("decision" in data)) {
+    throw new GatewayBridgeError("GATEWAY_RESPUESTA_INVALIDA", 502)
+  }
+  const respuesta = data.respuesta
+  const decision = data.decision
+  if (!respuesta || typeof respuesta !== "object" ||
+      !("choices" in respuesta) || !Array.isArray(respuesta.choices) || respuesta.choices.length === 0 ||
+      !respuesta.choices[0] || typeof respuesta.choices[0] !== "object" ||
+      !("message" in respuesta.choices[0]) || !respuesta.choices[0].message ||
+      typeof respuesta.choices[0].message !== "object" ||
+      !("content" in respuesta.choices[0].message) || typeof respuesta.choices[0].message.content !== "string" ||
+      respuesta.choices[0].message.content.length > 100_000 ||
+      !decision || typeof decision !== "object" ||
+      !("accion" in decision) || !["permitir", "seudonimizar"].includes(String(decision.accion)) ||
+      !("codigo_motivo" in decision) || typeof decision.codigo_motivo !== "string" ||
+      !/^[A-Z0-9_]{2,64}$/.test(decision.codigo_motivo) ||
+      !("evento" in decision) || typeof decision.evento !== "string" ||
+      !/^evt_[a-f0-9]{32}$/.test(decision.evento)) {
+    throw new GatewayBridgeError("GATEWAY_RESPUESTA_INVALIDA", 502)
+  }
+  return data as GatewayChatResponse
 }

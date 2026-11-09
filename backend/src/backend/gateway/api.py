@@ -1,8 +1,9 @@
 """Entrypoint HTTP experimental. Por defecto NO envía solicitudes a Internet."""
 from __future__ import annotations
 
-import re
 import hashlib
+import os
+import re
 import secrets
 import time
 import uuid
@@ -14,10 +15,8 @@ from fastapi.responses import JSONResponse
 from .audit import AuditoriaArchivo, AuditoriaNoConfigurada, AuditoriaNoDisponible
 from .config import Configuracion, proveedores_desde_entorno
 from .contracts import Accion, SolicitudChat
-from .pipeline import PipelineNoConfigurado, AnalisisNoDisponible, ContextoEjecucion
+from .pipeline import AnalisisNoDisponible, ContextoEjecucion, PipelineNoConfigurado
 from .providers import ProveedorNoDisponible
-
-import os
 
 _CODIGO = re.compile(r"^[A-Z0-9_]{2,64}$")
 
@@ -40,6 +39,15 @@ def error(codigo: str, estado: int, evento: str | None = None) -> JSONResponse:
         headers=cabeceras,
         content={"error": {"type": "gateway_error", "code": codigo, "message": mensajes[codigo]}},
     )
+
+
+def _token_recibido(autorizacion: str | None) -> str:
+    prefijo = "Bearer "
+    return autorizacion[len(prefijo):] if autorizacion and autorizacion.startswith(prefijo) else ""
+
+
+def _token_autorizado(recibido: str, config: Configuracion) -> bool:
+    return any(secrets.compare_digest(recibido, token) for token in config.tokens_cliente)
 
 
 def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) -> FastAPI:
@@ -73,10 +81,8 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
 
     async def procesar(cuerpo: SolicitudChat, autorizacion: str | None, extendida: bool):
         evento = "evt_" + uuid.uuid4().hex
-        prefix = "Bearer "
-        recibida = autorizacion[len(prefix):] if autorizacion and autorizacion.startswith(prefix) else ""
-        valido = any(secrets.compare_digest(recibida, t) for t in config.tokens_cliente)
-        if not valido:
+        recibida = _token_recibido(autorizacion)
+        if not _token_autorizado(recibida, config):
             return error("NO_AUTORIZADO", 401)
 
         ruta = config.rutas.get(cuerpo.model)
@@ -186,9 +192,7 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
 
     @app.get("/api/v1/models")
     async def models(authorization: str | None = Header(default=None)):
-        prefix = "Bearer "
-        recibida = authorization[len(prefix):] if authorization and authorization.startswith(prefix) else ""
-        if not any(secrets.compare_digest(recibida, t) for t in config.tokens_cliente):
+        if not _token_autorizado(_token_recibido(authorization), config):
             return error("NO_AUTORIZADO", 401)
         # Sólo alias del catálogo; no revelar modelo externo, URL o credenciales.
         grupos: dict[str, dict] = {}

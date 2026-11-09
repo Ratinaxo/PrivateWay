@@ -113,6 +113,34 @@ def _normalizar_fin(razon: object) -> str:
     return "stop"
 
 
+def _respuesta_chat_completions(datos: dict) -> RespuestaProveedor:
+    """Normalización compartida por OpenAI y servicios compatibles con Chat Completions."""
+    try:
+        eleccion = datos["choices"][0]
+        return RespuestaProveedor(
+            content=_texto(eleccion["message"]["content"]),
+            finish_reason=_normalizar_fin(eleccion.get("finish_reason")),
+        )
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ProveedorNoDisponible("RESPUESTA_INVALIDA") from exc
+
+
+def _payload_chat_completions(
+    modelo: str, mensajes: list[Mensaje], solicitud: SolicitudChat, *, campo_max_tokens: str
+) -> dict:
+    """Solicitud común de Chat Completions para OpenAI y APIs compatibles."""
+    payload: dict = {
+        "model": modelo,
+        "messages": [m.model_dump() for m in mensajes],
+        "stream": False,
+    }
+    if solicitud.temperature is not None:
+        payload["temperature"] = solicitud.temperature
+    if solicitud.max_tokens is not None:
+        payload[campo_max_tokens] = solicitud.max_tokens
+    return payload
+
+
 @dataclass(frozen=True)
 class ProveedorOpenAI:
     api_key_env: str
@@ -120,26 +148,15 @@ class ProveedorOpenAI:
 
     async def completar(self, modelo: str, mensajes: list[Mensaje], solicitud: SolicitudChat) -> RespuestaProveedor:
         _validar_modelo(modelo)
-        payload: dict = {
-            "model": modelo,
-            "messages": [m.model_dump() for m in mensajes],
-            "stream": False,
-        }
-        if solicitud.temperature is not None:
-            payload["temperature"] = solicitud.temperature
-        if solicitud.max_tokens is not None:
-            payload["max_completion_tokens"] = solicitud.max_tokens
+        payload = _payload_chat_completions(
+            modelo, mensajes, solicitud, campo_max_tokens="max_completion_tokens"
+        )
         datos = await _post_json(
             "https://api.openai.com/v1/chat/completions",
             {"Authorization": "Bearer " + _clave(self.api_key_env)},
             payload, self.transport,
         )
-        try:
-            eleccion = datos["choices"][0]
-            contenido = _texto(eleccion["message"]["content"])
-            return RespuestaProveedor(content=contenido, finish_reason=_normalizar_fin(eleccion.get("finish_reason")))
-        except (KeyError, IndexError, TypeError) as exc:
-            raise ProveedorNoDisponible("RESPUESTA_INVALIDA") from exc
+        return _respuesta_chat_completions(datos)
 
 
 @dataclass(frozen=True)
@@ -259,25 +276,12 @@ class ProveedorCompatibleChat:
 
     async def completar(self, modelo: str, mensajes: list[Mensaje], solicitud: SolicitudChat) -> RespuestaProveedor:
         _validar_modelo(modelo)
-        payload: dict = {
-            "model": modelo,
-            "messages": [m.model_dump() for m in mensajes],
-            "stream": False,
-        }
-        if solicitud.temperature is not None:
-            payload["temperature"] = solicitud.temperature
-        if solicitud.max_tokens is not None:
-            payload["max_tokens"] = solicitud.max_tokens
+        payload = _payload_chat_completions(
+            modelo, mensajes, solicitud, campo_max_tokens="max_tokens"
+        )
         datos = await _post_json(
             self.base_url.rstrip("/") + "/chat/completions",
             {"Authorization": "Bearer " + _clave(self.api_key_env)},
             payload, self.transport,
         )
-        try:
-            eleccion = datos["choices"][0]
-            return RespuestaProveedor(
-                content=_texto(eleccion["message"]["content"]),
-                finish_reason=_normalizar_fin(eleccion.get("finish_reason")),
-            )
-        except (KeyError, IndexError, TypeError) as exc:
-            raise ProveedorNoDisponible("RESPUESTA_INVALIDA") from exc
+        return _respuesta_chat_completions(datos)

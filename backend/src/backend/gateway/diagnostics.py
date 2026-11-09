@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
+import json
 import sys
 import time
 
@@ -40,7 +42,12 @@ async def diagnosticar(alias: str) -> int:
     if not resultado.content.strip():
         print("ERROR: RESPUESTA_VACIA")
         return 1
-    print(f"OK proveedor={ruta.proveedor} alias={alias} tiempo_ms={int((time.monotonic()-inicial)*1000)} respuesta_valida=true")
+    # Prueba exclusivamente con texto fijo y CLI: salida visible sólo al operador.
+    # JSON escapa caracteres de control para que la respuesta no ejecute secuencias de terminal.
+    muestra = json.dumps(resultado.content[:160], ensure_ascii=True)
+    digest = hashlib.sha256(resultado.content.encode("utf-8")).hexdigest()[:16]
+    print(f"OK proveedor={ruta.proveedor} alias={alias} tiempo_ms={int((time.monotonic()-inicial)*1000)} respuesta_valida=true longitud={len(resultado.content)} sha256_16={digest}")
+    print(f"Respuesta externa (primeros 160 caracteres escapados): {muestra}")
     print("Nota: prueba exclusiva del transporte. NO acredita protección ni precisión de la respuesta.")
     return 0
 

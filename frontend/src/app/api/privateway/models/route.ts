@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server"
+import { currentSession } from "@/lib/auth/session"
+import { isAuthConfigured } from "@/lib/auth/config"
 import {
   GatewayBridgeError,
   getGatewayCatalog,
@@ -8,13 +10,16 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function GET() {
-  // No exponer el catálogo por esta ruta sin OIDC en entornos productivos.
-  if (process.env.NODE_ENV !== "development" || process.env.PRIVATEWAY_DEV_CATALOG !== "1") {
-    return NextResponse.json(
-      { error: { code: "AUTENTICACION_PENDIENTE" } },
-      { status: 503, headers: { "Cache-Control": "no-store" } }
-    )
-  }
+  // El catálogo interno requiere sesión OIDC, incluso en desarrollo.
+  if (!isAuthConfigured()) return NextResponse.json(
+    { error: { code: "AUTENTICACION_NO_CONFIGURADA" } },
+    { status: 503, headers: { "Cache-Control": "no-store" } },
+  )
+  const session = await currentSession()
+  if (!session?.user?.id) return NextResponse.json(
+    { error: { code: "NO_AUTENTICADO" } },
+    { status: 401, headers: { "Cache-Control": "no-store" } },
+  )
 
   try {
     const catalog = await getGatewayCatalog()

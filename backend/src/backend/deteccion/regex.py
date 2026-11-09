@@ -32,7 +32,7 @@ class ReconocedorRun(PatternRecognizer):
 
     def __init__(self) -> None:
         super().__init__(
-            supported_entity=Categoria.IDENTIFICADOR_NACIONAL.name,
+            supported_entity=Categoria.RUN.name,
             name="run_chileno",
             supported_language=IDIOMA,
             patterns=[
