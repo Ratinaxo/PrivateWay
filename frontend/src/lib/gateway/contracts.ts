@@ -37,6 +37,8 @@ export interface GatewayChatResponse {
     accion: "permitir" | "seudonimizar" | "bloquear"
     codigo_motivo: string
     evento: string
+    mensaje_actual_seudonimizado: boolean
+    historial_seudonimizado: boolean
   }
 }
 

@@ -6,8 +6,8 @@ PrivateWay es un proyecto de tesis que desarrolla una interfaz conversacional un
 
 - Git
 - Docker con Docker Compose o Docker Desktop.
-- Python 3.11+
-- NodeJS 21+
+- Python 3.12+
+- Node.js 26
 - OpenSSL
 
 # Tecnologías

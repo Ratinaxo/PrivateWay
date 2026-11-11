@@ -6,6 +6,7 @@ podría reescribir y recalcular la cadena si no existe anclaje externo.
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 import hashlib
 import json
 import os
@@ -32,7 +33,7 @@ class AuditoriaNoConfigurada:
 class AuditoriaArchivo:
     """Únicamente maqueta local, un proceso escritor, fichero 0600."""
     listo = True
-    _CLAVES = {"evento", "fase", "alias", "proveedor", "accion", "motivo", "transmision"}
+    _CLAVES = {"evento", "fase", "alias", "proveedor", "accion", "motivo", "transmision", "fecha_utc", "mensaje_actual", "historial", "usuario", "usuario_id", "vista_disponible", "evento_consultado"}
 
     def __init__(self, ruta: str | Path) -> None:
         self.ruta = Path(ruta)
@@ -79,3 +80,64 @@ class AuditoriaArchivo:
             except OSError as exc:
                 raise AuditoriaNoDisponible("falló el registro previo/operativo") from exc
             self._anterior = digest
+
+
+    def _listar_verificando(self, limite: int) -> dict:
+        """Verifica toda la cadena antes de mostrar los últimos registros.
+
+        No expone el fichero, contenido de chats ni excepciones internas.
+        """
+        anterior = "0" * 64
+        ultimos: deque[dict] = deque(maxlen=limite)
+        total = 0
+        try:
+            if not self.ruta.exists():
+                return {"integridad": "verificada", "total": 0, "registros": []}
+            with self.ruta.open("r", encoding="utf-8") as archivo:
+                for linea in archivo:
+                    registro = json.loads(linea)
+                    if (not isinstance(registro, dict) or registro.get("anterior") != anterior
+                        or not isinstance(registro.get("evento"), dict)):
+                        raise ValueError("cadena inválida")
+                    evento = registro["evento"]
+                    if (not set(evento).issubset(self._CLAVES) or
+                        not all(isinstance(v, str) and len(v) <= 120 for v in evento.values())):
+                        raise ValueError("evento inválido")
+                    contenido = json.dumps(
+                        {"anterior": anterior, "evento": evento},
+                        sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                    )
+                    digest = hashlib.sha256(contenido.encode()).hexdigest()
+                    if registro.get("hash") != digest:
+                        raise ValueError("hash inválido")
+                    anterior = digest
+                    total += 1
+                    # Lista blanca: sin secretos, prompts, respuestas ni tokens.
+                    ultimos.append({k: evento[k] for k in
+                        ("fecha_utc", "evento", "fase", "alias", "proveedor", "accion", "motivo", "transmision", "mensaje_actual", "historial", "usuario", "usuario_id", "vista_disponible", "evento_consultado")
+                        if k in evento})
+        except (OSError, UnicodeError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+            raise AuditoriaNoDisponible("bitácora no verificable") from exc
+        return {"integridad": "verificada", "total": total, "registros": list(reversed(ultimos))}
+
+    async def listar(self, limite: int = 200) -> dict:
+        if not isinstance(limite, int) or limite < 1 or limite > 200:
+            raise AuditoriaNoDisponible("límite inválido")
+        async with self._lock:
+            return await asyncio.to_thread(self._listar_verificando, limite)
+
+    async def existe_evento(self, identificador: str) -> bool:
+        """Verificar la cadena completa antes de consultar contenido sensible."""
+        async with self._lock:
+            await asyncio.to_thread(self._listar_verificando, 1)
+            if not self.ruta.exists():
+                return False
+            def buscar() -> bool:
+                with self.ruta.open("r", encoding="utf-8") as archivo:
+                    for linea in archivo:
+                        registro = json.loads(linea)
+                        datos = registro.get("evento", {})
+                        if datos.get("evento") == identificador and datos.get("fase") == "preparada":
+                            return True
+                return False
+            return await asyncio.to_thread(buscar)

@@ -1,4 +1,4 @@
-"""Puerto independiente del framework: integrar aquí REGEX, RAG, SLM y política."""
+"""Contratos del pipeline de PrivateWay para detección y procesamiento."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -36,16 +36,3 @@ class PipelineProteccion(Protocol):
         respuesta: RespuestaProveedor, contexto: ContextoEjecucion
     ) -> RespuestaProveedor: ...
 
-
-class PipelineNoConfigurado:
-    """Fail-closed: nunca autorizamos red por ausencia de detectores/política."""
-    listo = False
-
-    async def analizar(self, solicitud: SolicitudChat, contexto: ContextoEjecucion) -> DecisionValidada:
-        raise AnalisisNoDisponible("pipeline pendiente")
-
-    async def procesar_respuesta(
-        self, solicitud: SolicitudChat, decision: DecisionValidada,
-        respuesta: RespuestaProveedor, contexto: ContextoEjecucion
-    ) -> RespuestaProveedor:
-        raise AnalisisNoDisponible("restitución pendiente")

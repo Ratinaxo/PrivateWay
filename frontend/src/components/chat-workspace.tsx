@@ -10,17 +10,20 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProfileMenu, UserAvatar } from "@/components/profile-menu"
+import { shouldNotifyCurrentMessage } from "@/lib/privacy-notice"
 import {
   type ChatMessage, type Conversation, type Provider,
 } from "@/lib/chat"
 
 const MAX_PROMPT_LENGTH = 12_000
+const MAX_CONTEXT_MESSAGES = 29 // El mensaje nuevo ocupa la posición 30 del contrato FastAPI.
+const MAX_STORED_MESSAGES = 500
 
 const ERROR_TEXT: Record<string, string> = {
   AUTENTICACION_NO_CONFIGURADA: "El inicio de sesión no está configurado.",
   NO_AUTENTICADO: "Tu sesión ha expirado. Inicia sesión para continuar.",
   CHAT_CERRADO_SIN_AUTENTICACION: "Envío deshabilitado: se requiere iniciar sesión.",
-  ANALISIS_NO_DISPONIBLE: "El pipeline todavía no está configurado. La solicitud fue detenida antes de contactar al proveedor.",
+  ANALISIS_NO_DISPONIBLE: "El análisis REGEX no está disponible. La solicitud fue detenida.",
   POLITICA_BLOQUEA: "La política de seguridad bloqueó la transmisión del mensaje.",
   FALLO_VALIDACION: "No se pudo validar de forma segura el análisis. La solicitud se ha bloqueado.",
   AUDITORIA_NO_DISPONIBLE: "La auditoría no está disponible; no se autoriza la operación.",
@@ -141,6 +144,10 @@ function Message({ message }: { message: ChatMessage }) {
 
 export function ChatWorkspace({ user }: { user: { name: string; email: string | null; isAdmin: boolean } }) {
   const [chats, setChats] = React.useState<Conversation[]>([])
+  const [historyLoaded, setHistoryLoaded] = React.useState(false)
+  const [historyError, setHistoryError] = React.useState<string | null>(null)
+  const persistedRef = React.useRef<Map<string, string>>(new Map())
+  const persistQueueRef = React.useRef<Map<string, Promise<void>>>(new Map())
   const [providers, setProviders] = React.useState<Provider[]>([])
   const [catalogError, setCatalogError] = React.useState<string | null>(null)
   const [catalogLoading, setCatalogLoading] = React.useState(true)
@@ -174,6 +181,57 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
       ),
     }))
     .filter((group) => group.items.length)
+
+  React.useEffect(() => {
+    const controller = new AbortController()
+    void fetch("/api/privateway/conversations", {cache: "no-store", signal: controller.signal})
+      .then(async (response) => {
+        if (!response.ok) throw new Error("HISTORIAL_NO_DISPONIBLE")
+        const data: unknown = await response.json()
+        if (!data || typeof data !== "object" || !("conversations" in data) || !Array.isArray(data.conversations)) throw new Error("HISTORIAL_INVALIDO")
+        const loaded = data.conversations as Conversation[]
+        if (loaded.some((chat) => !chat || typeof chat.id !== "string" || typeof chat.title !== "string" || !Array.isArray(chat.messages))) throw new Error("HISTORIAL_INVALIDO")
+        if (controller.signal.aborted) return
+        persistedRef.current = new Map(loaded.map((chat) => [chat.id, JSON.stringify(chat)]))
+        setChats(loaded)
+        setActiveId(loaded[0]?.id ?? null)
+        setHistoryError(null)
+        setHistoryLoaded(true)
+      })
+      .catch(() => {if (!controller.signal.aborted) setHistoryError("No se pudo recuperar el historial de PostgreSQL. Comprueba el estado del servicio antes de enviar mensajes.")})
+    return () => controller.abort()
+  }, [])
+
+  React.useEffect(() => {
+    if (!historyLoaded) return
+    const actual = new Map(chats.map((chat) => [chat.id, JSON.stringify(chat)]))
+    const encolar = (id: string, metodo: "PUT" | "DELETE", payload?: string) => {
+      const anterior = persistQueueRef.current.get(id) ?? Promise.resolve()
+      const siguiente = anterior.catch(() => {}).then(async () => {
+        const response = await fetch(`/api/privateway/conversations/${encodeURIComponent(id)}`, {
+          method: metodo,
+          headers: payload ? {"Content-Type": "application/json"} : {},
+          body: payload,
+          cache: "no-store",
+        })
+        if (!response.ok) throw new Error("No se pudo guardar el historial")
+      })
+      persistQueueRef.current.set(id, siguiente)
+      void siguiente.catch(() => setHistoryError("No se pudieron guardar los cambios de conversación. Recarga solo cuando se haya resuelto la conexión."))
+    }
+    for (const [id, data] of actual) {
+      if (persistedRef.current.get(id) !== data) {
+        persistedRef.current.set(id, data)
+        encolar(id, "PUT", data)
+      }
+    }
+    for (const id of persistedRef.current.keys()) {
+      if (!actual.has(id)) {
+        persistedRef.current.delete(id)
+        encolar(id, "DELETE")
+      }
+    }
+  }, [chats, historyLoaded])
 
   React.useEffect(() => {
     const controller = new AbortController()
@@ -219,6 +277,7 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
   }, [])
 
   const newChat = () => {
+    if (!historyLoaded || historyError) return
     setActiveId(null)
     setDraft("")
     setMobileOpen(false)
@@ -234,9 +293,10 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
   const send = async (event?: React.FormEvent) => {
     event?.preventDefault()
     const content = draft.trim()
-    if (sendingRef.current || !content || content.length > MAX_PROMPT_LENGTH || !currentModel) return
+    if (sendingRef.current || !historyLoaded || historyError || !content || content.length > MAX_PROMPT_LENGTH || !currentModel) return
     const history = activeChat?.messages.filter((message) => message.role === "user" || message.role === "assistant") ?? []
-    if (history.length >= 30) return
+    // La ventana de contexto es independiente del historial persistente.
+    const contextWindow = history.slice(-MAX_CONTEXT_MESSAGES)
 
     sendingRef.current = true
     setSending(true)
@@ -244,7 +304,7 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
     const chatId = activeChat?.id ?? makeId()
     const input: ChatMessage = { id: makeId(), role: "user", content, createdAt: now }
     if (activeChat) {
-      setChats((previous) => previous.map((chat) => chat.id === chatId ? { ...chat, updatedAt: now, messages: [...chat.messages, input] } : chat))
+      setChats((previous) => previous.map((chat) => chat.id === chatId ? { ...chat, updatedAt: now, messages: [...chat.messages, input].slice(-MAX_STORED_MESSAGES) } : chat))
     } else {
       setChats((previous) => [{ id: chatId, title: content.length > 46 ? `${content.slice(0, 46)}…` : content,
         providerId: currentProvider, modelId: currentModel, createdAt: now, updatedAt: now, messages: [input] }, ...previous])
@@ -253,7 +313,7 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
     setDraft("")
     const addMessage = (message: ChatMessage) => {
       setChats((previous) => previous.map((chat) => chat.id === chatId
-        ? { ...chat, updatedAt: message.createdAt, messages: [...chat.messages, message] } : chat))
+        ? { ...chat, updatedAt: message.createdAt, messages: [...chat.messages, message].slice(-MAX_STORED_MESSAGES) } : chat))
     }
     try {
       const response = await fetch("/api/privateway/chat", {
@@ -262,7 +322,7 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
         cache: "no-store",
         body: JSON.stringify({
           model: currentModel,
-          messages: [...history.map((m) => ({ role: m.role, content: m.content })), { role: "user", content }],
+          messages: [...contextWindow.map((m) => ({ role: m.role, content: m.content })), { role: "user", content }],
           stream: false,
         }),
       })
@@ -279,10 +339,9 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
         typeof data.respuesta !== "object" || !("choices" in data.respuesta) || !Array.isArray(data.respuesta.choices) ||
         typeof data.respuesta.choices[0]?.message?.content !== "string") throw new Error("RESPUESTA_INVALIDA")
       addMessage({ id: makeId(), role: "assistant", createdAt: Date.now(), content: data.respuesta.choices[0].message.content })
-      if ("decision" in data && data.decision && typeof data.decision === "object" &&
-        "accion" in data.decision && data.decision.accion === "seudonimizar") {
+      if ("decision" in data && shouldNotifyCurrentMessage(data.decision)) {
         addMessage({ id: makeId(), role: "notice", noticeType: "protected", createdAt: Date.now(),
-          content: "El gateway aplicó seudonimización antes de enviar la solicitud." })
+          content: "El gateway seudonimizó datos de tu mensaje antes de enviarlo." })
       }
     } catch {
       addMessage({ id: makeId(), role: "notice", noticeType: "error", createdAt: Date.now(),
@@ -295,7 +354,7 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
   }
 
   const renameChat = () => {
-    const title = renameDraft.trim()
+    const title = renameDraft.trim().slice(0, 120)
     if (renameId && title) setChats((previous) => previous.map((chat) => chat.id === renameId ? { ...chat, title } : chat))
     setRenameId(null)
   }
@@ -339,7 +398,7 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
           <div className="flex min-w-0 items-center gap-3"><button aria-label="Abrir barra lateral" onClick={() => { setSidebarOpen(true); setMobileOpen(true) }} className={`rounded-lg p-2 text-stone-500 hover:bg-stone-100 ${sidebarOpen ? "lg:hidden" : ""}`}><PanelLeftOpen className="size-5" /></button><div className="min-w-0"><div className="truncate text-sm font-semibold">{activeChat?.title ?? "Nueva conversación"}</div><div className="mt-0.5 text-[11px] text-stone-400">{activeChat ? `${providerLabel(currentProvider)} · ${modelLabel(currentProvider, currentModel)}` : "Selecciona un proveedor y un modelo para empezar"}</div></div></div>
           <div className="flex items-center gap-3">
             <span className="hidden items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-800 sm:inline-flex">
-              <span className="size-1.5 rounded-full bg-amber-500" /> OIDC ACTIVO · PIPELINE PENDIENTE
+              <span className="size-1.5 rounded-full bg-amber-500" /> OIDC ACTIVO · REGEX ACTIVO
             </span>
             <ProfileMenu name={user.name} email={user.email} isAdmin={user.isAdmin} />
           </div>
@@ -347,9 +406,9 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
 
         <main ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto scroll-smooth px-4" aria-label="Mensajes de la conversación">
           {activeChat ? (
-            <div className="mx-auto max-w-3xl pb-10 pt-7 sm:pt-10"><div className="mb-6 flex items-center gap-2 border-b border-stone-100 pb-5 text-xs text-stone-400"><ShieldCheck className="size-4" /> Conversación local · El gateway bloquea los envíos hasta integrar el pipeline</div>{activeChat.messages.map((message) => <Message key={message.id} message={message} />)}</div>
+            <div className="mx-auto max-w-3xl pb-10 pt-7 sm:pt-10"><div className="mb-6 flex items-center gap-2 border-b border-stone-100 pb-5 text-xs text-stone-400"><ShieldCheck className="size-4" /> Historial persistente por usuario · REGEX activo · Análisis semántico pendiente</div>{activeChat.messages.map((message) => <Message key={message.id} message={message} />)}</div>
           ) : (
-            <div className="mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center pb-10 text-center"><div className="mb-5 flex size-16 items-center justify-center rounded-[22px] bg-emerald-950 text-white shadow-[0_14px_35px_-15px_rgba(6,78,59,0.65)]"><ShieldCheck className="size-8" /></div><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-800">Un solo lugar para tus conversaciones</p><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">¿En qué puedo ayudarte?</h1><p className="mt-3 max-w-lg text-sm leading-7 text-stone-500">Organiza tus conversaciones con distintos proveedores en un único espacio.</p><div className="mt-8 grid w-full max-w-xl gap-3 text-left sm:grid-cols-2"><div className="rounded-2xl border border-stone-200 bg-white p-4"><ShieldCheck className="mb-3 size-5 text-emerald-800" /><div className="text-sm font-medium">Diseñado para proteger</div><p className="mt-1 text-xs leading-5 text-stone-500">El gateway está diseñado para evaluar y proteger los prompts antes de transmitirlos. La política de protección está en desarrollo.</p></div><div className="rounded-2xl border border-stone-200 bg-white p-4"><MessageSquareText className="mb-3 size-5 text-emerald-800" /><div className="text-sm font-medium">Historial unificado</div><p className="mt-1 text-xs leading-5 text-stone-500">Explora tus conversaciones de distintos chats desde la barra lateral.</p></div></div></div>
+            <div className="mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center pb-10 text-center"><div className="mb-5 flex size-16 items-center justify-center rounded-[22px] bg-emerald-950 text-white shadow-[0_14px_35px_-15px_rgba(6,78,59,0.65)]"><ShieldCheck className="size-8" /></div><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-800">Un solo lugar para tus conversaciones</p><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">¿En qué puedo ayudarte?</h1><p className="mt-3 max-w-lg text-sm leading-7 text-stone-500">Organiza tus conversaciones con distintos proveedores en un único espacio.</p><div className="mt-8 grid w-full max-w-xl gap-3 text-left sm:grid-cols-2"><div className="rounded-2xl border border-stone-200 bg-white p-4"><ShieldCheck className="mb-3 size-5 text-emerald-800" /><div className="text-sm font-medium">Diseñado para proteger</div><p className="mt-1 text-xs leading-5 text-stone-500">El gateway aplica detección REGEX y seudonimización antes de llamar al adaptador configurado. La detección semántica aún no está implementada.</p></div><div className="rounded-2xl border border-stone-200 bg-white p-4"><MessageSquareText className="mb-3 size-5 text-emerald-800" /><div className="text-sm font-medium">Historial unificado</div><p className="mt-1 text-xs leading-5 text-stone-500">Explora y recupera tus conversaciones personales desde PostgreSQL, incluso al recargar la página.</p></div></div></div>
           )}
         </main>
 
@@ -360,13 +419,14 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
               <label className="relative inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs text-stone-700"><span className="sr-only">Proveedor</span>{activeChat ? <LockKeyhole className="size-3.5 text-stone-400" /> : <ChevronDown className="size-3.5 text-stone-400" />}<select aria-label="Proveedor" disabled={!!activeChat || catalogLoading || !!catalogError} className="max-w-32 appearance-none bg-transparent pr-1 font-medium outline-none disabled:cursor-not-allowed sm:max-w-none" value={currentProvider} onChange={(event) => { const next = providers.find((item) => item.id === event.target.value); if (!next) return; setProviderId(next.id); setModelId(next.models[0].id) }}>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select></label>
               <label className="relative inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs text-stone-700"><span className="sr-only">Modelo</span>{activeChat ? <LockKeyhole className="size-3.5 text-stone-400" /> : <ChevronsUpDown className="size-3.5 text-stone-400" />}<select aria-label="Modelo" disabled={!!activeChat || catalogLoading || !!catalogError} className="max-w-35 appearance-none bg-transparent pr-1 font-medium outline-none disabled:cursor-not-allowed sm:max-w-none" value={currentModel} onChange={(event) => setModelId(event.target.value)}>{(activeChat ? providers.find((provider) => provider.id === currentProvider)?.models ?? [] : selectedProvider?.models ?? []).map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}</select></label>
               {activeChat && <span className="hidden items-center text-[11px] text-stone-400 md:inline-flex">Fijos en este chat</span>}
-            </div><Button type="submit" disabled={sending || !currentModel || !draft.trim() || draft.trim().length > MAX_PROMPT_LENGTH} aria-label="Enviar al gateway protegido" className="size-9 rounded-xl bg-emerald-900 p-0 text-white hover:bg-emerald-800 disabled:opacity-40"><ArrowUp className="size-4" /></Button></div>
-          </form><p className="mt-2 text-center text-[11px] leading-5 text-stone-400">{catalogError ?? (sending ? "Procesando solicitud en el gateway…" : "Sesión OIDC activa. No introduzcas datos sensibles: la transmisión externa continúa bloqueada hasta integrar y validar el pipeline.")}</p></div>
+            </div><Button type="submit" disabled={sending || !historyLoaded || !!historyError || !currentModel || !draft.trim() || draft.trim().length > MAX_PROMPT_LENGTH} aria-label="Enviar al gateway protegido" className="size-9 rounded-xl bg-emerald-900 p-0 text-white hover:bg-emerald-800 disabled:opacity-40"><ArrowUp className="size-4" /></Button></div>
+          </form><p className="mt-2 text-center text-[11px] leading-5 text-stone-400">{historyError ?? catalogError ?? (!historyLoaded ? "Cargando conversaciones desde PostgreSQL…" : sending ? "Procesando solicitud en el gateway…" : "REGEX activo · Análisis semántico pendiente. Se envían hasta 29 mensajes previos como contexto; el historial se guarda cifrado en PostgreSQL.")}</p></div>
         </div>
       </div>
 
+      {historyError && <div role="alert" className="fixed bottom-24 left-1/2 z-50 w-[90vw] max-w-xl -translate-x-1/2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 shadow-md">{historyError} <button className="ml-2 underline" onClick={() => window.location.reload()}>Reintentar</button></div>}
       {renameId && <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/45 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setRenameId(null) }}><form role="dialog" aria-modal="true" aria-labelledby="rename-title" onSubmit={(event) => { event.preventDefault(); renameChat() }} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"><div className="mb-4 flex items-center justify-between"><h2 id="rename-title" className="font-semibold">Renombrar conversación</h2><button type="button" aria-label="Cancelar" onClick={() => setRenameId(null)}><X className="size-4" /></button></div><input autoFocus value={renameDraft} maxLength={100} onChange={(event) => setRenameDraft(event.target.value)} className="h-10 w-full rounded-lg border border-stone-300 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-800" /><div className="mt-5 flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setRenameId(null)}>Cancelar</Button><Button type="submit" disabled={!renameDraft.trim()} className="bg-emerald-900 text-white">Guardar</Button></div></form></div>}
-      {deleteId && <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/45 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeleteId(null) }}><div role="alertdialog" aria-modal="true" aria-labelledby="delete-title" className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"><div className="mb-4 flex items-center justify-between"><h2 id="delete-title" className="font-semibold">Eliminar conversación</h2><button aria-label="Cancelar" onClick={() => setDeleteId(null)}><X className="size-4" /></button></div><p className="text-sm leading-6 text-stone-500">Esta conversación se eliminará del estado de demostración. No existe almacenamiento persistente en esta versión.</p><div className="mt-5 flex justify-end gap-2"><Button variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button><Button onClick={deleteChat} className="bg-red-700 text-white hover:bg-red-800">Eliminar</Button></div></div></div>}
+      {deleteId && <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/45 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeleteId(null) }}><div role="alertdialog" aria-modal="true" aria-labelledby="delete-title" className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"><div className="mb-4 flex items-center justify-between"><h2 id="delete-title" className="font-semibold">Eliminar conversación</h2><button aria-label="Cancelar" onClick={() => setDeleteId(null)}><X className="size-4" /></button></div><p className="text-sm leading-6 text-stone-500">Esta conversación se eliminará de tu historial persistente en PostgreSQL. Los registros de auditoría se conservan de forma separada.</p><div className="mt-5 flex justify-end gap-2"><Button variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button><Button onClick={deleteChat} className="bg-red-700 text-white hover:bg-red-800">Eliminar</Button></div></div></div>}
     </div>
   )
 }

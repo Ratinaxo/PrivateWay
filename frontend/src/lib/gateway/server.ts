@@ -9,7 +9,7 @@ export class GatewayBridgeError extends Error {
   }
 }
 
-async function requestGateway(path: "/api/v1/models" | "/api/v1/secure-chat", body?: GatewayChatRequest): Promise<unknown> {
+async function requestGateway(path: "/api/v1/models" | "/api/v1/secure-chat", body?: GatewayChatRequest, actor?: {id: string; name: string}): Promise<unknown> {
   if (!INTERNAL_BASE || !SERVICE_TOKEN) {
     throw new GatewayBridgeError("GATEWAY_NO_CONFIGURADO", 503)
   }
@@ -32,6 +32,7 @@ async function requestGateway(path: "/api/v1/models" | "/api/v1/secure-chat", bo
       headers: {
         Authorization: `Bearer ${SERVICE_TOKEN}`,
         ...(body ? { "Content-Type": "application/json" } : {}),
+        ...(actor ? {"X-PrivateWay-User-Id": actor.id, "X-PrivateWay-User-Name": encodeURIComponent(actor.name.slice(0, 100))} : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store",
@@ -90,8 +91,8 @@ export async function getGatewayCatalog(): Promise<GatewayCatalog> {
   return data as GatewayCatalog
 }
 
-export async function sendProtectedChat(body: GatewayChatRequest): Promise<GatewayChatResponse> {
-  const data = await requestGateway("/api/v1/secure-chat", body)
+export async function sendProtectedChat(body: GatewayChatRequest, actor?: {id: string; name: string}): Promise<GatewayChatResponse> {
+  const data = await requestGateway("/api/v1/secure-chat", body, actor)
   if (!data || typeof data !== "object" || !("respuesta" in data) || !("decision" in data)) {
     throw new GatewayBridgeError("GATEWAY_RESPUESTA_INVALIDA", 502)
   }
@@ -109,7 +110,9 @@ export async function sendProtectedChat(body: GatewayChatRequest): Promise<Gatew
       !("codigo_motivo" in decision) || typeof decision.codigo_motivo !== "string" ||
       !/^[A-Z0-9_]{2,64}$/.test(decision.codigo_motivo) ||
       !("evento" in decision) || typeof decision.evento !== "string" ||
-      !/^evt_[a-f0-9]{32}$/.test(decision.evento)) {
+      !/^evt_[a-f0-9]{32}$/.test(decision.evento) ||
+      !("mensaje_actual_seudonimizado" in decision) || typeof decision.mensaje_actual_seudonimizado !== "boolean" ||
+      !("historial_seudonimizado" in decision) || typeof decision.historial_seudonimizado !== "boolean") {
     throw new GatewayBridgeError("GATEWAY_RESPUESTA_INVALIDA", 502)
   }
   return data as GatewayChatResponse

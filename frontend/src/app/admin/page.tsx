@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, ShieldCheck, UsersRound, LockKeyhole } from "lucide-react"
+import { ArrowLeft, ShieldCheck, UsersRound, LockKeyhole, ScrollText } from "lucide-react"
 import { requireAdminSession } from "@/lib/auth/session"
 import { AdminUsers } from "@/components/admin/admin-users"
 
@@ -19,6 +19,7 @@ export default async function AdminPage() {
           <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">Acceso restringido</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Administración de usuarios</h1><p className="mt-2 text-sm text-stone-500">Keycloak · Realm privateway · Administrador: {session.user.name || session.user.id}</p></div>
         </div>
         <div className="mb-7 flex items-start gap-3 rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600"><LockKeyhole className="mt-0.5 size-5 shrink-0 text-emerald-800" /><p>Las contraseñas se guardan únicamente en Keycloak. Los cambios de rol y estado se comprueban en el servidor antes de ejecutarse. Esta consola no elimina cuentas ni historiales.</p></div>
+        <Link href="/admin/auditoria" className="mb-7 inline-flex items-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800"><ScrollText className="size-5" /> Ver bitácora y auditoría</Link>
         <AdminUsers actingUserId={session.user.id} />
       </div>
     </main>

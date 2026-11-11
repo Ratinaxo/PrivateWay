@@ -1,15 +1,10 @@
-"""Etapa REGEX: patrones de identificadores estructurados.
+"""Detección estructurada offline mediante reconocedores de patrones de Presidio.
 
-Es la primera etapa de análisis del diagrama. Cada reconocedor es un
-`PatternRecognizer` de Presidio, de modo que la etapa del SLM pueda reutilizar
-el mismo registro de reconocedores más adelante.
-
-No se usan los reconocedores de correo y URL que trae Presidio porque dependen
-de `tldextract`, que descarga la lista de sufijos públicos desde internet en su
-primer uso. Eso contradice el requisito de que el análisis no transmita nada
-fuera del entorno local.
+No se crea ``AnalyzerEngine`` ni se descarga un modelo NLP: los tres
+reconocedores son ``PatternRecognizer`` ejecutados localmente. Este módulo
+devuelve hallazgos; el gateway orquesta su tratamiento y selecciona el
+adaptador configurado.
 """
-
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -20,15 +15,11 @@ from . import run
 from .hallazgo import Categoria, Hallazgo, Procedencia
 
 IDIOMA = "es"
-
-# Puntaje que Presidio asigna a una coincidencia antes de validarla. Si
-# `validate_result` la confirma, Presidio la sube a 1.0; si la rechaza, la
-# descarta.
 _PUNTAJE_PATRON = 0.5
 
 
 class ReconocedorRun(PatternRecognizer):
-    """RUN con puntos y guion, con guion solamente o sin separadores."""
+    """RUN/RUT chileno con dígito verificador comprobado por módulo 11."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -56,7 +47,7 @@ class ReconocedorRun(PatternRecognizer):
 
 
 class ReconocedorCorreo(PatternRecognizer):
-    """Dirección de correo electrónico, sin validar el dominio en línea."""
+    """Correos sin consultas DNS, eTLD ni validación remota."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -66,7 +57,13 @@ class ReconocedorCorreo(PatternRecognizer):
             patterns=[
                 Pattern(
                     name="correo",
-                    regex=r"(?<![\w.])[\w.+-]+@[\w-]+(?:\.[\w-]+)+(?![\w.])",
+                    regex=(
+                        r"(?<![\w.@])"
+                        r"[\w+%-]+(?:\.[\w+%-]+)*"
+                        r"@"
+                        r"[\w-]+(?:\.[\w-]+)+"
+                        r"(?![\w@-])"
+                    ),
                     score=1.0,
                 )
             ],
@@ -74,7 +71,7 @@ class ReconocedorCorreo(PatternRecognizer):
 
 
 class ReconocedorTelefono(PatternRecognizer):
-    """Móvil chileno: +56 seguido de 9 y ocho cifras, o el número de nueve cifras."""
+    """Móviles chilenos de nueve cifras, opcionalmente con prefijo 56."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -84,7 +81,12 @@ class ReconocedorTelefono(PatternRecognizer):
             patterns=[
                 Pattern(
                     name="movil",
-                    regex=r"(?<![\w+])(?:\+?56[\s-]?)?9[\s-]?\d{4}[\s-]?\d{4}(?![\w-])",
+                    regex=(
+                        r"(?<![\w+])"
+                        r"(?:\+?56[\s-]?)?"
+                        r"9[\s-]?\d{4}[\s-]?\d{4}"
+                        r"(?![\w-])"
+                    ),
                     score=1.0,
                 )
             ],
@@ -96,51 +98,57 @@ def reconocedores_por_omision() -> list[PatternRecognizer]:
 
 
 class EtapaRegex:
-    """Ejecuta los reconocedores y entrega hallazgos sin solapamientos."""
+    """Detecta entidades REGEX preservando evidencias de categorías ambiguas.
+
+    Dos categorías pueden coincidir sobre la misma cadena, como un teléfono
+    cuyo número satisface el DV de un RUN. Conservamos ambas evidencias, y
+    dejamos a la política combinar tramos antes de seudonimizar.
+    """
 
     def __init__(self, reconocedores: Sequence[PatternRecognizer] | None = None) -> None:
         self.reconocedores = (
             list(reconocedores) if reconocedores is not None else reconocedores_por_omision()
         )
+        if not self.reconocedores:
+            raise ValueError("EtapaRegex requiere reconocedores")
 
     def analizar(self, texto: str) -> list[Hallazgo]:
+        if not isinstance(texto, str):
+            raise TypeError("se esperaba texto")
         hallazgos: list[Hallazgo] = []
         for reconocedor in self.reconocedores:
             resultados = reconocedor.analyze(texto, reconocedor.supported_entities)
-            hallazgos.extend(self._a_hallazgo(texto, reconocedor, r) for r in resultados)
-        return self._resolver_solapamientos(hallazgos)
+            for resultado in resultados:
+                hallazgos.append(self._a_hallazgo(texto, reconocedor, resultado))
+        return self._deduplicar(hallazgos)
 
     @staticmethod
     def _a_hallazgo(
         texto: str, reconocedor: PatternRecognizer, resultado: RecognizerResult
     ) -> Hallazgo:
+        # Un resultado anómalo es un fallo, no una autorización silenciosa.
+        if not (isinstance(resultado.start, int) and isinstance(resultado.end, int)
+                and 0 <= resultado.start < resultado.end <= len(texto)):
+            raise ValueError("tramo de detector fuera de límites")
+        categoria = Categoria[resultado.entity_type]
         return Hallazgo(
-            categoria=Categoria[resultado.entity_type],
-            valor=texto[resultado.start : resultado.end],
+            categoria=categoria,
+            valor=texto[resultado.start:resultado.end],
             inicio=resultado.start,
             fin=resultado.end,
             reconocedor=reconocedor.name,
             procedencia=Procedencia.REGEX,
             confianza=resultado.score,
-            # Solo el RUN tiene una rutina aritmética; Presidio la ejecutó y
-            # descartó los que no la superan.
             verificado=isinstance(reconocedor, ReconocedorRun),
         )
 
     @staticmethod
-    def _resolver_solapamientos(hallazgos: list[Hallazgo]) -> list[Hallazgo]:
-        """Ante dos hallazgos que se solapan, conserva el de mayor confianza.
-
-        Si empatan en confianza, conserva el más largo: un RUN completo debe
-        prevalecer sobre un número contenido en él.
-        """
-        ordenados = sorted(hallazgos, key=lambda h: (-h.confianza, -(h.fin - h.inicio), h.inicio))
-        conservados: list[Hallazgo] = []
-        for candidato in ordenados:
-            solapa = any(
-                candidato.inicio < existente.fin and existente.inicio < candidato.fin
-                for existente in conservados
-            )
-            if not solapa:
-                conservados.append(candidato)
-        return sorted(conservados, key=lambda h: h.inicio)
+    def _deduplicar(hallazgos: list[Hallazgo]) -> list[Hallazgo]:
+        # El mismo segmento puede ser tanto RUN como TELÉFONO; no eliminarlo.
+        unicos: dict[tuple[Categoria, int, int], Hallazgo] = {}
+        for h in hallazgos:
+            clave = (h.categoria, h.inicio, h.fin)
+            previo = unicos.get(clave)
+            if previo is None or (h.verificado, h.confianza) > (previo.verificado, previo.confianza):
+                unicos[clave] = h
+        return sorted(unicos.values(), key=lambda h: (h.inicio, h.fin, h.categoria.value))

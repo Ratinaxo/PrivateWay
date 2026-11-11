@@ -1,5 +1,5 @@
-# PrivateWay - despliegue de laboratorio, NUNCA publicar el puerto HTTP sin TLS.
-# El chat HTTP queda cerrado por el backend hasta integrar el pipeline y OIDC.
+# PrivateWay - entorno de desarrollo local, HTTP solo en loopback.
+# El gateway ejecuta REGEX por defecto; el análisis semántico aún está pendiente.
 name: privateway
 
 services:
@@ -40,7 +40,8 @@ services:
     environment:
       GATEWAY_INTERNAL_URL: "http://backend:8000"
       GATEWAY_CLIENT_TOKEN: "${PRIVATEWAY_GATEWAY_TOKEN:?Define PRIVATEWAY_GATEWAY_TOKEN en el archivo .env}"
-      PRIVATEWAY_DEV_CATALOG: "0"
+      GATEWAY_AUDIT_READ_TOKEN: "${PRIVATEWAY_AUDIT_READ_TOKEN:-}"
+      GATEWAY_HISTORY_TOKEN: "${PRIVATEWAY_HISTORY_TOKEN:?Define PRIVATEWAY_HISTORY_TOKEN en .env}"
       NEXT_TELEMETRY_DISABLED: "1"
       NEXTAUTH_URL: "http://127.0.0.1:${PRIVATEWAY_HTTP_PORT:-8080}"
       NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:?Define NEXTAUTH_SECRET en .env}"
@@ -56,10 +57,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      keycloak-init:
+        condition: service_completed_successfully
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s
       timeout: 8s
       retries: 5
@@ -76,8 +79,14 @@ services:
       GATEWAY_ROUTES_JSON: "${GATEWAY_ROUTES_JSON:?Define GATEWAY_ROUTES_JSON en el archivo .env}"
       GATEWAY_PROVIDERS_JSON: "${GATEWAY_PROVIDERS_JSON:?Define GATEWAY_PROVIDERS_JSON en el archivo .env}"
       GATEWAY_ALLOWED_PROVIDER_HOSTS: "${GATEWAY_ALLOWED_PROVIDER_HOSTS:-}"
-      GATEWAY_DEMO_MODE: "${GATEWAY_DEMO_MODE:-0}"
       GATEWAY_AUDIT_FILE: /var/lib/privateway/audit/events.jsonl
+      GATEWAY_AUDIT_READ_TOKEN: "${PRIVATEWAY_AUDIT_READ_TOKEN:-}"
+      GATEWAY_AUDIT_CONTENT_KEY: "${PRIVATEWAY_AUDIT_CONTENT_KEY:?Define PRIVATEWAY_AUDIT_CONTENT_KEY en .env}"
+      GATEWAY_AUDIT_CONTENT_DIR: /var/lib/privateway/audit/previews
+      GATEWAY_HISTORY_TOKEN: "${PRIVATEWAY_HISTORY_TOKEN:?Define PRIVATEWAY_HISTORY_TOKEN en .env}"
+      PRIVATEWAY_DB_HOST: postgres
+      PRIVATEWAY_DB_PASSWORD: "${PRIVATEWAY_DB_PASSWORD:?Define PRIVATEWAY_DB_PASSWORD en .env}"
+      PRIVATEWAY_CONVERSATION_KEY: "${PRIVATEWAY_CONVERSATION_KEY:?Define PRIVATEWAY_CONVERSATION_KEY en .env}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
       GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
@@ -86,13 +95,16 @@ services:
       - provider_egress
     volumes:
       - audit_data:/var/lib/privateway/audit
+    depends_on:
+      postgres:
+        condition: service_healthy
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      # Liveness: /ready devuelve 503 intencionadamente sin pipeline.
+      # Liveness: /health no exige que todos los proveedores estén disponibles.
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).close()"]
       interval: 20s
       timeout: 5s
@@ -165,15 +177,13 @@ services:
       - private
     security_opt:
       - no-new-privileges:true
-  # Opcional y aún NO conectado al código de conversaciones; se habilita explícitamente.
   postgres:
     image: pgvector/pgvector:pg17
-    profiles: ["data"]
     restart: unless-stopped
     environment:
       POSTGRES_DB: privateway
       POSTGRES_USER: privateway
-      POSTGRES_PASSWORD: "${PRIVATEWAY_DB_PASSWORD:-}"
+      POSTGRES_PASSWORD: "${PRIVATEWAY_DB_PASSWORD:?Define PRIVATEWAY_DB_PASSWORD en .env}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:

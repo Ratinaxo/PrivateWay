@@ -1,6 +1,6 @@
 /**
- * Puente de mensajes: navegador -> Next.js -> gateway protegido.
- * Exige sesión OIDC; el backend aplica el bloqueo seguro del pipeline.
+ * Puente de mensajes: navegador -> Next.js -> gateway FastAPI.
+ * Exige sesión OIDC; el backend ejecuta su pipeline configurado.
  * NUNCA incorpora credenciales de proveedores en la respuesta al navegador.
  */
 import { NextResponse } from "next/server"
@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic"
 
 const MAX_BODY_BYTES = 256_000
 const ALIAS = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/
+const OIDC_SUB = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ROLES = new Set(["user", "assistant"])
 const ERROR_HEADERS = { "Cache-Control": "no-store" }
 
@@ -51,10 +52,11 @@ function parseRequest(value: unknown): GatewayChatRequest | null {
 
 export async function POST(request: Request) {
   // Autenticación obligatoria en cualquier entorno, también durante desarrollo.
-  // La sesión del BFF no sustituye las decisiones fail-closed de FastAPI.
+  // La sesión del BFF no sustituye las decisiones del pipeline en FastAPI.
   if (!isAuthConfigured()) return failure("AUTENTICACION_NO_CONFIGURADA", 503)
   const session = await currentSession()
   if (!session?.user?.id) return failure("NO_AUTENTICADO", 401)
+  if (!OIDC_SUB.test(session.user.id)) return failure("IDENTIDAD_INVALIDA", 403)
   // Rechazar solicitudes cross-site típicas antes de procesar el cuerpo.
   const origin = request.headers.get("origin")
   if (request.headers.get("sec-fetch-site") === "cross-site") return failure("ORIGEN_NO_ADMITIDO", 403)
@@ -83,7 +85,7 @@ export async function POST(request: Request) {
   if (!body) return failure("SOLICITUD_INVALIDA", 422)
 
   try {
-    const result = await sendProtectedChat(body)
+    const result = await sendProtectedChat(body, {id: session.user.id, name: session.user.name || session.user.id})
     return NextResponse.json(result, { headers: ERROR_HEADERS })
   } catch (error) {
     const status = error instanceof GatewayBridgeError ? error.status : 502

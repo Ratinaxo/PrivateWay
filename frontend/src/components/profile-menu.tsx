@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { signOutFederated } from "@/lib/auth/signout"
-import { CircleUserRound, Settings, LogOut, LoaderCircle, UsersRound } from "lucide-react"
+import { CircleUserRound, Settings, LogOut, LoaderCircle, UsersRound, ScrollText } from "lucide-react"
 import { useState } from "react"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
@@ -29,6 +29,7 @@ export function ProfileMenu({ name, email, isAdmin = false }: { name: string; em
           <DropdownMenuItem onClick={() => router.push("/perfil")}><CircleUserRound className="size-4" /> Mi perfil</DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push("/configuracion")}><Settings className="size-4" /> Configuración</DropdownMenuItem>
           {isAdmin && <DropdownMenuItem onClick={() => router.push("/admin")}><UsersRound className="size-4" /> Administración</DropdownMenuItem>}
+          {isAdmin && <DropdownMenuItem onClick={() => router.push("/admin/auditoria")}><ScrollText className="size-4" /> Bitácora y auditoría</DropdownMenuItem>}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={busy} variant="destructive" onClick={() => { setBusy(true); void signOutFederated().catch(() => setBusy(false)) }}>

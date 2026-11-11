@@ -73,7 +73,7 @@ def proveedores_desde_entorno() -> dict[str, AdaptadorProveedor]:
             adaptadores[nombre] = ProveedorCompatibleChat(
                 base_url=conf["base_url"], api_key_env=conf["api_key_env"], allowed_hosts=allow,
             )
-        elif tipo == "simulado" and os.environ.get("GATEWAY_DEMO_MODE") == "1":
+        elif tipo == "simulado":
             adaptadores[nombre] = ProveedorSimulado()
         else:
             raise RuntimeError("Tipo de proveedor no permitido")

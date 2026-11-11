@@ -1,11 +1,11 @@
 """Resultado de detectores locales; los desplazamientos se refieren al texto recibido.
 
-Este contrato NO autoriza transmitir prompts. El gateway aplica la política por separado.
+El gateway es responsable de aplicar la política a estos hallazgos.
 Evitar imprimir o serializar ``valor`` en auditoría o logs: puede contener PII.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 
@@ -23,7 +23,7 @@ class Procedencia(str, Enum):
 @dataclass(frozen=True)
 class Hallazgo:
     categoria: Categoria
-    valor: str
+    valor: str = field(repr=False)  # PII: nunca mostrar en repr/logs.
     inicio: int
     fin: int
     reconocedor: str

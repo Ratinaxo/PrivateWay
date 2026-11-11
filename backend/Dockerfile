@@ -19,5 +19,5 @@ RUN groupadd --gid 10001 privateway \
 
 USER privateway
 EXPOSE 8000
-# La instancia ASGI se obtiene mediante la factoría create_app del gateway experimental.
+# Instancia ASGI mediante la factoría create_app del gateway.
 CMD ["uvicorn", "backend.gateway.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

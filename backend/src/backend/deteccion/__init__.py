@@ -1,1 +1,1 @@
-"""Detección local (no conectada aún al gateway de producción)."""
+"""Reconocedores estructurados offline (gateway: solo laboratorio REGEX)."""

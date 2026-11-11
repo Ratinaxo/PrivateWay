@@ -27,21 +27,21 @@ Este documento explica la configuración del **laboratorio local** de PrivateWay
 | `PRIVATEWAY_GATEWAY_TOKEN` | **Secreto obligatorio** | Token compartido **solo entre el BFF Next.js y FastAPI**. Compose lo inyecta como `GATEWAY_CLIENT_TOKEN` en frontend y `GATEWAY_CLIENT_TOKENS` en backend. Debe tener al menos 24 caracteres. |
 | `GATEWAY_ROUTES_JSON` | Obligatoria | JSON con alias visibles y correspondencia `{ "proveedor": ..., "modelo_externo": ... }`. |
 | `GATEWAY_PROVIDERS_JSON` | Obligatoria | JSON con los adaptadores disponibles; por defecto, el proveedor `simulado`. |
-| `GATEWAY_DEMO_MODE` | De laboratorio | `1` habilita el adaptador simulado en el backend; `0` lo deshabilita. No habilita por sí solo la salida de prompts. |
-| `PRIVATEWAY_DEV_CHAT_BRIDGE` | Opcional | `0` (predeterminado) mantiene cerrado el puente de chat del BFF en desarrollo. Solo modificar para pruebas controladas; **no sustituye la protección del gateway**. |
 | `PRIVATEWAY_HTTP_PORT` | Opcional | Puerto de Nginx en `127.0.0.1`; normalmente `8080`. También se usa para los URI de retorno OIDC al inicializar Keycloak. |
 | `PRIVATEWAY_DEV_FRONTEND_PORT` | Opcional | Puerto directo de Next.js en modo desarrollo; normalmente `3000`. Para **probar el login**, usar el acceso por Nginx (`:8080`), coherente con `NEXTAUTH_URL`. |
 | `GATEWAY_ALLOWED_PROVIDER_HOSTS` | Opcional | Lista separada por comas de hosts autorizados para adaptadores `compatible_chat` HTTPS. Vacío si no se utilizan. |
 | `OPENAI_API_KEY` | Secreto opcional | Clave de OpenAI; necesaria solo al configurar y probar ese proveedor. |
 | `ANTHROPIC_API_KEY` | Secreto opcional | Clave de Anthropic, si se utiliza su adaptador. |
 | `GEMINI_API_KEY` | Secreto opcional | Clave de Gemini, si se utiliza su adaptador. |
-| `PRIVATEWAY_DB_PASSWORD` | Secreto opcional | Contraseña de PostgreSQL de PrivateWay; **no se utiliza todavía** (Aún no configuramos ni programamos la base de datos) si el perfil Compose `data` permanece desactivado. No es la base de datos de Keycloak. |
+| `PRIVATEWAY_DB_PASSWORD` | **Secreto obligatorio** | Contraseña de PostgreSQL de conversaciones, independiente de `KEYCLOAK_DB_PASSWORD`. No cambiarla después de inicializar el volumen sin actualizar el rol de PostgreSQL. |
+| `PRIVATEWAY_HISTORY_TOKEN` | **Secreto obligatorio** | Token BFF → gateway, exclusivamente para listar/guardar/eliminar conversaciones, diferente del de chat y auditoría. |
+| `PRIVATEWAY_CONVERSATION_KEY` | **Secreto obligatorio** | Clave Fernet para cifrar las conversaciones en PostgreSQL. Si se pierde, no se pueden recuperar los chats anteriores. |
+| `PRIVATEWAY_AUDIT_READ_TOKEN` | **Secreto obligatorio** | Token de lectura de auditoría para el BFF; distinto del token de chat e historial. |
+| `PRIVATEWAY_AUDIT_CONTENT_KEY` | **Secreto obligatorio** | Clave Fernet para guardar y recuperar las vistas sensibles «antes/después». Si se pierde, las vistas existentes no serán legibles. |
 
 Configuración predeterminada sin proveedores externos:
 
 ```dotenv
-GATEWAY_DEMO_MODE=1
-PRIVATEWAY_DEV_CHAT_BRIDGE=0
 GATEWAY_ROUTES_JSON={"pw-simulado":{"proveedor":"simulado","modelo_externo":"modelo-demo"}}
 GATEWAY_PROVIDERS_JSON={"simulado":{"tipo":"simulado"}}
 GATEWAY_ALLOWED_PROVIDER_HOSTS=
@@ -122,7 +122,7 @@ Copiar el resultado **solo a** `PRIVATEWAY_GATEWAY_TOKEN=` dentro del archivo `.
 Después, generar automáticamente los seis secretos de autenticación vacíos:
 
 ```fish
-python3 scripts/configurar-keycloak.py
+python3 configurar-keycloak.py
 ```
 
 El script rellena **únicamente las variables de autenticación que falten o estén vacías**, agrega los nombres de administrador cuando faltan y mantiene los demás valores. No genera `PRIVATEWAY_GATEWAY_TOKEN` ni `PRIVATEWAY_DB_PASSWORD`. También restringe `.env` a permisos `0600`. Como el script modifica valores de Linux, puede que tengas que adaptarlo para Windows.
@@ -166,7 +166,7 @@ http://auth.privateway.test:8081/realms/privateway
 
 **Versionar:** código `backend/` y `frontend/`, `compose.yaml`, `compose.dev.yaml`, `deployment/keycloak/bootstrap.sh`, `deployment/nginx/local.conf`, `scripts/configurar-keycloak.py`, `.env.example`, `readme-env.md`, pruebas y archivos de dependencias bloqueadas.
 
-**No versionar:** `.env` reales (incluidos los de subdirectorios), credenciales, tokens, claves privadas, bases de datos, archivos de auditoría, backups con secretos, volúmenes Docker, `node_modules/`, `.next/`, entornos virtuales (como los .venv/ de Python) ni respaldos locales de carpetas.
+**No versionar:** `.env` reales (incluidos los de subdirectorios), credenciales, tokens, claves privadas, bases de datos, archivos de auditoría, backups con secretos, volúmenes Docker, `node_modules/`, `.next/`, entornos Python virtuales ni respaldos locales de carpetas.
 
 El script `deployment/keycloak/bootstrap.sh` crea el realm `privateway`, los roles `privateway-user` y `privateway-admin`, los clientes OIDC y `pwadmin` **si todavía no existen**. Las cuentas adicionales que se hayan creado durante la instalación **no estarán** en la del resto de desarrolladores: viven en PostgreSQL de Keycloak, dentro del volumen Docker `keycloak_db_data`.
 
@@ -214,7 +214,7 @@ No ejecutar `docker compose config` sin `--quiet` al compartir logs: puede mostr
 
 ## 8. Limitaciones vigentes
 
-- El login OIDC y el panel de administración se han comprobado manualmente en la instalación original.
-- El gateway permanece en modo *fail closed* (Mandar una consulta lanza error) hasta integrar el pipeline REGEX/RAG/SLM y el motor de políticas; autenticarse correctamente no implica que el chat ya pueda enviar prompts a proveedores externos.
+- El login OIDC y el panel de administración se han comprobado manualmente en la instalación original; los demás desarrolladores deben repetir su propia prueba.
+- El pipeline REGEX está integrado y se ejecuta antes de cualquier adaptador configurado, incluido uno externo. REGEX solo reconoce las categorías implementadas: no detecta todos los datos personales o semánticos. RAG/SLM y las políticas definitivas siguen pendientes.
 - Las claves API de LLM son opcionales para probar la autenticación y la gestión de cuentas.
 - Para producción: utilizar HTTPS, secretos gestionados, Keycloak fuera de `start-dev`, MFA, copias de seguridad, hostname corporativo y revisión de permisos administrativos.
