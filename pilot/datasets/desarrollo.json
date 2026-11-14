@@ -1,0 +1,1328 @@
+[
+  {
+    "id": "desarrollo_0_0",
+    "familia": "desarrollo_escenario0",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Explica cómo funciona un calendario."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_1_0",
+    "familia": "desarrollo_escenario1",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 45,
+        "fin": 57,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: El RUN del solicitante es 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_2_0",
+    "familia": "desarrollo_escenario2",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 29,
+        "fin": 50,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Contacto: persona0@example.test."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_3_0",
+    "familia": "desarrollo_escenario3",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 30,
+        "fin": 42,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Llámame al +56987654320."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_4_0",
+    "familia": "desarrollo_escenario4",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 51,
+        "fin": 61,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: La persona solicitante se llama Ana Torres."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_5_0",
+    "familia": "desarrollo_escenario5",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 55,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Mi domicilio es Calle Imaginaria 100."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_6_0",
+    "familia": "desarrollo_escenario6",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 29,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 36,
+        "fin": 44,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Ana Torres tiene diabetes."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_7_0",
+    "familia": "desarrollo_escenario7",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 29,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 34,
+        "fin": 55,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 58,
+        "fin": 70,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Ana Torres usa persona0@example.test y +56987654320."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_8_0",
+    "familia": "desarrollo_escenario8",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 29,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 66,
+        "fin": 76,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Ana Torres solicitó ayuda. Debemos contactar a Ana Torres."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_9_0",
+    "familia": "desarrollo_escenario9",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 18,
+        "fin": 28,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "La solicitante es Ana Torres."
+      },
+      {
+        "role": "user",
+        "content": "Necesito resumir el antecedente anterior."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_0_1",
+    "familia": "desarrollo_escenario0",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Explica cómo funciona un calendario."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_1_1",
+    "familia": "desarrollo_escenario1",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 45,
+        "fin": 57,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: El RUN del solicitante es 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_2_1",
+    "familia": "desarrollo_escenario2",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 29,
+        "fin": 50,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Contacto: persona1@example.test."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_3_1",
+    "familia": "desarrollo_escenario3",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 30,
+        "fin": 42,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Llámame al +56987654321."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_4_1",
+    "familia": "desarrollo_escenario4",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 51,
+        "fin": 63,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: La persona solicitante se llama Luis Paredes."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_5_1",
+    "familia": "desarrollo_escenario5",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 55,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Mi domicilio es Calle Imaginaria 101."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_6_1",
+    "familia": "desarrollo_escenario6",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 31,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 38,
+        "fin": 46,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Luis Paredes tiene diabetes."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_7_1",
+    "familia": "desarrollo_escenario7",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 31,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 36,
+        "fin": 57,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 60,
+        "fin": 72,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Luis Paredes usa persona1@example.test y +56987654321."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_8_1",
+    "familia": "desarrollo_escenario8",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 31,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 68,
+        "fin": 80,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Luis Paredes solicitó ayuda. Debemos contactar a Luis Paredes."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_9_1",
+    "familia": "desarrollo_escenario9",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 18,
+        "fin": 30,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "La solicitante es Luis Paredes."
+      },
+      {
+        "role": "user",
+        "content": "Necesito resumir el antecedente anterior."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_0_2",
+    "familia": "desarrollo_escenario0",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Explica cómo funciona un calendario."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_1_2",
+    "familia": "desarrollo_escenario1",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 45,
+        "fin": 57,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: El RUN del solicitante es 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_2_2",
+    "familia": "desarrollo_escenario2",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 29,
+        "fin": 50,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Contacto: persona2@example.test."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_3_2",
+    "familia": "desarrollo_escenario3",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 30,
+        "fin": 42,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Llámame al +56987654322."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_4_2",
+    "familia": "desarrollo_escenario4",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 51,
+        "fin": 61,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: La persona solicitante se llama Rosa Vidal."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_5_2",
+    "familia": "desarrollo_escenario5",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 55,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Mi domicilio es Calle Imaginaria 102."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_6_2",
+    "familia": "desarrollo_escenario6",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 29,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 36,
+        "fin": 44,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Rosa Vidal tiene diabetes."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_7_2",
+    "familia": "desarrollo_escenario7",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 29,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 34,
+        "fin": 55,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 58,
+        "fin": 70,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Rosa Vidal usa persona2@example.test y +56987654322."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_8_2",
+    "familia": "desarrollo_escenario8",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 29,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 66,
+        "fin": 76,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Rosa Vidal solicitó ayuda. Debemos contactar a Rosa Vidal."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_9_2",
+    "familia": "desarrollo_escenario9",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 18,
+        "fin": 28,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "La solicitante es Rosa Vidal."
+      },
+      {
+        "role": "user",
+        "content": "Necesito resumir el antecedente anterior."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_0_3",
+    "familia": "desarrollo_escenario0",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Explica cómo funciona un calendario."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_1_3",
+    "familia": "desarrollo_escenario1",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 45,
+        "fin": 57,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: El RUN del solicitante es 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_2_3",
+    "familia": "desarrollo_escenario2",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 29,
+        "fin": 50,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Contacto: persona3@example.test."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_3_3",
+    "familia": "desarrollo_escenario3",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 30,
+        "fin": 42,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Llámame al +56987654323."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_4_3",
+    "familia": "desarrollo_escenario4",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 51,
+        "fin": 62,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: La persona solicitante se llama Diego Salas."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_5_3",
+    "familia": "desarrollo_escenario5",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 55,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Mi domicilio es Calle Imaginaria 103."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_6_3",
+    "familia": "desarrollo_escenario6",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 30,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 37,
+        "fin": 45,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Diego Salas tiene diabetes."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_7_3",
+    "familia": "desarrollo_escenario7",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 30,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 56,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 71,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Diego Salas usa persona3@example.test y +56987654323."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_8_3",
+    "familia": "desarrollo_escenario8",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 30,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 67,
+        "fin": 78,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Diego Salas solicitó ayuda. Debemos contactar a Diego Salas."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_9_3",
+    "familia": "desarrollo_escenario9",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 18,
+        "fin": 29,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "La solicitante es Diego Salas."
+      },
+      {
+        "role": "user",
+        "content": "Necesito resumir el antecedente anterior."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_0_4",
+    "familia": "desarrollo_escenario0",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Explica cómo funciona un calendario."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_1_4",
+    "familia": "desarrollo_escenario1",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 45,
+        "fin": 57,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: El RUN del solicitante es 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_2_4",
+    "familia": "desarrollo_escenario2",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 29,
+        "fin": 50,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Contacto: persona4@example.test."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_3_4",
+    "familia": "desarrollo_escenario3",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 30,
+        "fin": 42,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Llámame al +56987654324."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_4_4",
+    "familia": "desarrollo_escenario4",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 51,
+        "fin": 62,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: La persona solicitante se llama Elena Rojas."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_5_4",
+    "familia": "desarrollo_escenario5",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 55,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Mi domicilio es Calle Imaginaria 104."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_6_4",
+    "familia": "desarrollo_escenario6",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 30,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 37,
+        "fin": 45,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Elena Rojas tiene diabetes."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_7_4",
+    "familia": "desarrollo_escenario7",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 30,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 56,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 71,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Elena Rojas usa persona4@example.test y +56987654324."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_8_4",
+    "familia": "desarrollo_escenario8",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 30,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 67,
+        "fin": 78,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Elena Rojas solicitó ayuda. Debemos contactar a Elena Rojas."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_9_4",
+    "familia": "desarrollo_escenario9",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 18,
+        "fin": 29,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "La solicitante es Elena Rojas."
+      },
+      {
+        "role": "user",
+        "content": "Necesito resumir el antecedente anterior."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_0_5",
+    "familia": "desarrollo_escenario0",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Explica cómo funciona un calendario."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_1_5",
+    "familia": "desarrollo_escenario1",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 45,
+        "fin": 57,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: El RUN del solicitante es 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_2_5",
+    "familia": "desarrollo_escenario2",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 29,
+        "fin": 50,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Contacto: persona5@example.test."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_3_5",
+    "familia": "desarrollo_escenario3",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 30,
+        "fin": 42,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Llámame al +56987654325."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_4_5",
+    "familia": "desarrollo_escenario4",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 51,
+        "fin": 61,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: La persona solicitante se llama Mario Soto."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_5_5",
+    "familia": "desarrollo_escenario5",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 55,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Mi domicilio es Calle Imaginaria 105."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_6_5",
+    "familia": "desarrollo_escenario6",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 29,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 36,
+        "fin": 44,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Mario Soto tiene diabetes."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_7_5",
+    "familia": "desarrollo_escenario7",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 29,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 34,
+        "fin": 55,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 58,
+        "fin": 70,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Mario Soto usa persona5@example.test y +56987654325."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_8_5",
+    "familia": "desarrollo_escenario8",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 19,
+        "fin": 29,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 66,
+        "fin": 76,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume este texto: Mario Soto solicitó ayuda. Debemos contactar a Mario Soto."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_9_5",
+    "familia": "desarrollo_escenario9",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 18,
+        "fin": 28,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "La solicitante es Mario Soto."
+      },
+      {
+        "role": "user",
+        "content": "Necesito resumir el antecedente anterior."
+      }
+    ]
+  }
+]

@@ -144,7 +144,9 @@ def test_un_fallo_de_detector_es_fail_closed_y_no_audita_el_prompt():
     assert r.status_code == 503
     assert r.json()["error"]["code"] == "ANALISIS_NO_DISPONIBLE"
     assert "persona@ejemplo.cl" not in r.text
-    assert not proveedor.llamadas and not auditoria.eventos
+    assert not proveedor.llamadas
+    assert auditoria.eventos[-1]["fase"] == "fallo_analisis"
+    assert "persona@ejemplo.cl" not in str(auditoria.eventos)
 
 
 def test_respuesta_con_datos_estructurados_se_bloquea_en_retorno():

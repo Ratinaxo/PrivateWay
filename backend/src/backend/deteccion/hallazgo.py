@@ -13,6 +13,9 @@ class Categoria(str, Enum):
     RUN = "run"
     CORREO = "correo"
     TELEFONO = "telefono"
+    PERSONA = "persona"
+    DIRECCION = "direccion"
+    SALUD = "salud"
 
 
 class Procedencia(str, Enum):

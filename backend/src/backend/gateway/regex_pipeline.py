@@ -14,7 +14,7 @@ from .contracts import Accion, Mensaje, RespuestaProveedor, SolicitudChat
 from .pipeline import AnalisisNoDisponible, ContextoEjecucion, DecisionValidada
 
 _MAX_TEXTO_TOTAL = 120_000
-_CATEGORIAS_PRIORIDAD = (Categoria.RUN, Categoria.CORREO, Categoria.TELEFONO)
+_CATEGORIAS_PRIORIDAD = tuple(Categoria)
 
 
 class DetectorEstructurado(Protocol):

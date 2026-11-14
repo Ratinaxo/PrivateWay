@@ -7,3 +7,8 @@
 **/node_modules/
 **/.next/
 **/.venv/
+**/__pycache__/
+**/.pytest_cache/
+pilot/models/
+pilot/results/
+pilot/corpus/raw/

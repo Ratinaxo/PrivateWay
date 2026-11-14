@@ -4,6 +4,10 @@ PrivateWay es un proyecto de tesis que desarrolla una interfaz conversacional un
 
 # Requisitos
 
+El laboratorio integrado con vLLM, E5 y pgvector está documentado en [README-pilot.md](README-pilot.md).
+Usa configuración y volúmenes propios, datos sintéticos y proveedor simulado.
+El resumen de implementación, resultados y pendientes está en [README-CAMBIOS-PILOTO.md](README-CAMBIOS-PILOTO.md).
+
 - Git
 - Docker con Docker Compose o Docker Desktop.
 - Python 3.12+

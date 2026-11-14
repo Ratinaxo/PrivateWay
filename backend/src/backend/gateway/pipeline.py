@@ -1,13 +1,15 @@
 """Contratos del pipeline de PrivateWay para detección y procesamiento."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 from .contracts import Accion, Mensaje, SolicitudChat, RespuestaProveedor
 
 
 class AnalisisNoDisponible(Exception):
-    pass
+    def __init__(self, mensaje="analisis no disponible", *, codigo="ANALISIS_NO_DISPONIBLE"):
+        super().__init__(mensaje)
+        self.codigo = codigo
 
 
 @dataclass(frozen=True)
@@ -17,6 +19,7 @@ class DecisionValidada:
     mensajes_salida: list[Mensaje] | None = None
     validacion_completa: bool = False
     cobertura_verificada: bool = False
+    traza: dict = field(default_factory=dict, repr=False)
 
 
 @dataclass(frozen=True)

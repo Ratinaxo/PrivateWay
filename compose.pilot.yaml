@@ -1,0 +1,110 @@
+# Laboratorio independiente: no publica inferencia, embeddings ni PostgreSQL.
+name: privateway-pilot
+services:
+  proxy:
+    image: nginx:stable-alpine@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a
+    ports: [127.0.0.1:8082:80]
+    volumes: [./pilot/nginx.conf:/etc/nginx/conf.d/default.conf:ro]
+    networks: [ingress, local]
+    depends_on: [backend]
+  slm:
+    image: vllm/vllm-openai:v0.10.2@sha256:607442e407b0fea97f8a132a78b787c121a996dd4de181fa08e8da06e71ec2db
+    gpus: all
+    shm_size: 1gb
+    environment:
+      VLLM_API_KEY: ${PRIVATEWAY_SLM_TOKEN:?Ejecutar scripts/setup_pilot.py}
+      HF_HUB_OFFLINE: '1'
+      VLLM_NO_USAGE_STATS: '1'
+      DO_NOT_TRACK: '1'
+    command:
+      - --model=/models/qwen
+      - --served-model-name=privateway-slm
+      - --dtype=half
+      - --quantization=awq_marlin
+      - --max-model-len=${PRIVATEWAY_SLM_CONTEXT:-4096}
+      - --max-num-seqs=1
+      - --max-num-batched-tokens=${PRIVATEWAY_SLM_CONTEXT:-4096}
+      - --gpu-memory-utilization=${PRIVATEWAY_GPU_MEMORY:-0.75}
+      - --enforce-eager
+      - --swap-space=0
+      - --disable-log-requests
+      - --disable-log-stats
+    volumes:
+      - ./pilot/models:/models:ro
+    networks: [local]
+    healthcheck:
+      test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+  embeddings:
+    build: ./services/embeddings
+    environment:
+      PRIVATEWAY_EMBEDDINGS_TOKEN: ${PRIVATEWAY_EMBEDDINGS_TOKEN:?Ejecutar setup}
+      PRIVATEWAY_E5_REVISION: ${PRIVATEWAY_E5_REVISION:?Descargar modelos}
+    volumes: [./pilot/models:/models:ro]
+    networks: [local]
+    healthcheck:
+      test: [CMD, python, -c, "import os,urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8001/ready',headers={'Authorization':'Bearer '+os.environ['PRIVATEWAY_EMBEDDINGS_TOKEN']}),timeout=5)"]
+      interval: 20s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+  postgres:
+    image: pgvector/pgvector:pg17@sha256:b513c48566e4777cd3370451400000c78eda6a08131d68f4c31d4a76f27bd8fd
+    environment:
+      POSTGRES_DB: privateway
+      POSTGRES_USER: privateway
+      POSTGRES_PASSWORD: ${PRIVATEWAY_DB_PASSWORD:?Ejecutar setup}
+    volumes: [pilot_db:/var/lib/postgresql/data]
+    networks: [local]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U privateway -d privateway]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  backend:
+    build: ./backend
+    environment:
+      PRIVATEWAY_PIPELINE: hibrido
+      PRIVATEWAY_SLM_URL: http://slm:8000
+      PRIVATEWAY_SLM_MODEL: privateway-slm
+      PRIVATEWAY_SLM_CONTEXT: ${PRIVATEWAY_SLM_CONTEXT:-4096}
+      PRIVATEWAY_SLM_TOKEN: ${PRIVATEWAY_SLM_TOKEN}
+      PRIVATEWAY_EMBEDDINGS_URL: http://embeddings:8001
+      PRIVATEWAY_EMBEDDINGS_TOKEN: ${PRIVATEWAY_EMBEDDINGS_TOKEN}
+      PRIVATEWAY_DB_HOST: postgres
+      PRIVATEWAY_DB_PASSWORD: ${PRIVATEWAY_DB_PASSWORD}
+      GATEWAY_CLIENT_TOKENS: ${PRIVATEWAY_GATEWAY_TOKEN}
+      GATEWAY_ROUTES_JSON: '{"pw-simulado":{"proveedor":"simulado","modelo_externo":"modelo-demo"}}'
+      GATEWAY_PROVIDERS_JSON: '{"simulado":{"tipo":"simulado"}}'
+      GATEWAY_AUDIT_FILE: /var/lib/privateway/audit/events.jsonl
+      GATEWAY_AUDIT_CONTENT_KEY: ${PRIVATEWAY_AUDIT_CONTENT_KEY}
+      GATEWAY_AUDIT_CONTENT_DIR: /var/lib/privateway/audit/previews
+    volumes:
+      - pilot_audit:/var/lib/privateway/audit
+      - ./backend/src:/app/src:ro
+      - ./pilot/corpus:/corpus:ro
+      - ./pilot/datasets:/pilot/datasets:ro
+      - ./pilot/models.lock.json:/pilot/models.lock.json:ro
+      - ./pilot/results:/pilot/results
+    networks: [local]
+    depends_on:
+      postgres: {condition: service_healthy}
+      embeddings: {condition: service_healthy}
+      slm: {condition: service_healthy}
+  prepare:
+    image: python:3.12-slim-bookworm
+    profiles: [prepare]
+    working_dir: /work
+    volumes: [./:/work]
+    command: [python, scripts/download_models.py]
+    networks: [download]
+networks:
+  ingress: {}
+  local: {internal: true}
+  download: {}
+volumes:
+  pilot_db:
+  pilot_audit:

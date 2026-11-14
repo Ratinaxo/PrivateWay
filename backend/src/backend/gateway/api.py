@@ -62,8 +62,15 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
         auditoria = AuditoriaArchivo(ruta_auditoria) if ruta_auditoria else AuditoriaNoConfigurada()
     adaptadores = adaptadores if adaptadores is not None else proveedores_desde_entorno()
     if pipeline is None:
-        from .regex_pipeline import PipelineRegex
-        pipeline = PipelineRegex()
+        modo = os.environ.get("PRIVATEWAY_PIPELINE", "regex")
+        if modo == "hibrido":
+            from .hybrid import desde_entorno
+            pipeline = desde_entorno()
+        elif modo == "regex":
+            from .regex_pipeline import PipelineRegex
+            pipeline = PipelineRegex()
+        else:
+            raise RuntimeError("PRIVATEWAY_PIPELINE no admitido")
 
     # Claves opcionales hasta completar configuración del entorno de desarrollo.
     # Nunca guardar PII en el JSONL. La vista detallada usa cifrado separado.
@@ -147,13 +154,16 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
         return {"alive": True}
 
     @app.get("/ready")
-    def ready():
+    async def ready():
         def proveedor_preparado(adaptador):
             variable = getattr(adaptador, "api_key_env", None)
             return variable is None or bool(os.environ.get(variable))
         ok = bool(getattr(pipeline, "listo", False) and getattr(auditoria, "listo", False)
                   and all(r.proveedor in adaptadores and proveedor_preparado(adaptadores[r.proveedor])
                           for r in config.rutas.values()))
+        comprobar = getattr(pipeline, "comprobar", None)
+        if comprobar is not None:
+            ok = bool(ok and await comprobar())
         return JSONResponse(status_code=200 if ok else 503, content={"ready": ok})
 
     @app.get("/api/v1/audit/events")
@@ -222,7 +232,14 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
         )
         try:
             decision = await pipeline.analizar(cuerpo, contexto)
-        except AnalisisNoDisponible:
+        except AnalisisNoDisponible as exc:
+            try:
+                await auditoria.registrar({"evento": evento, "fase": "fallo_analisis",
+                                          "fecha_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                                          "motivo": exc.codigo if _CODIGO.fullmatch(exc.codigo) else "ANALISIS_NO_DISPONIBLE",
+                                          "transmision": "no_realizada"})
+            except AuditoriaNoDisponible:
+                return error("AUDITORIA_NO_DISPONIBLE", 503, evento)
             return error("ANALISIS_NO_DISPONIBLE", 503, evento)
         except Exception:
             # No devolver excepciones con trozos del prompt.
@@ -276,6 +293,11 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
             ],
             "respuesta": None,
         }
+        if getattr(decision, "traza", None):
+            # Justificación, entidades y fuentes solo en el almacén cifrado.
+            if contenido_auditado is None:
+                return error("AUDITORIA_NO_DISPONIBLE", 503, evento)
+            vista_preparada["analisis"] = decision.traza
         try:
             if contenido_auditado is not None:
                 await contenido_auditado.guardar(evento, vista_preparada)

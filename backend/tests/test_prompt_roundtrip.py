@@ -115,7 +115,9 @@ def test_detector_fallido_no_invoca_proveedor():
     result = envio(client)
     assert result.status_code == 503
     assert result.json()["error"]["code"] == "ANALISIS_NO_DISPONIBLE"
-    assert not adaptador.llamadas and not auditoria.eventos
+    assert not adaptador.llamadas
+    assert auditoria.eventos[-1]["fase"] == "fallo_analisis"
+    assert auditoria.eventos[-1]["transmision"] == "no_realizada"
 
 
 def test_auth_y_modelo_no_autorizados_no_invocan_proveedor():

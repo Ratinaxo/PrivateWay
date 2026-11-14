@@ -1,0 +1,1328 @@
+[
+  {
+    "id": "validacion_0_0",
+    "familia": "validacion_escenario0",
+    "split": "validacion",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Escribe una guía para regar plantas de interior."
+      }
+    ]
+  },
+  {
+    "id": "validacion_1_0",
+    "familia": "validacion_escenario1",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 65,
+        "fin": 77,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Completa el formulario de atención. Identificador de la persona: 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "validacion_2_0",
+    "familia": "validacion_escenario2",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 43,
+        "fin": 64,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "¿Puedes redactar una invitación dirigida a persona0@example.test?"
+      }
+    ]
+  },
+  {
+    "id": "validacion_3_0",
+    "familia": "validacion_escenario3",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 28,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "El cliente dejó +56987654320 como número para devolverle la llamada."
+      }
+    ]
+  },
+  {
+    "id": "validacion_4_0",
+    "familia": "validacion_escenario4",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 47,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "A quien corresponda: certifico que Julia Campos entregó sus antecedentes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_5_0",
+    "familia": "validacion_escenario5",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 55,
+        "fin": 75,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Envía la encomienda al domicilio particular ubicado en Calle Imaginaria 100."
+      }
+    ]
+  },
+  {
+    "id": "validacion_6_0",
+    "familia": "validacion_escenario6",
+    "split": "validacion",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 23,
+        "fin": 35,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 61,
+        "fin": 69,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En la ficha clínica de Julia Campos figura un diagnóstico de diabetes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_7_0",
+    "familia": "validacion_escenario7",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 14,
+        "fin": 26,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 64,
+        "fin": 85,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 94,
+        "fin": 106,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Destinatario: Julia Campos. Para confirmar la entrega escribe a persona0@example.test o marca +56987654320."
+      }
+    ]
+  },
+  {
+    "id": "validacion_8_0",
+    "familia": "validacion_escenario8",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 28,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 61,
+        "fin": 73,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Acta: comparece Julia Campos. La firma corresponde también a Julia Campos."
+      }
+    ]
+  },
+  {
+    "id": "validacion_9_0",
+    "familia": "validacion_escenario9",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 20,
+        "fin": 32,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Deja registrado que Julia Campos retiró el paquete."
+      },
+      {
+        "role": "user",
+        "content": "Ahora convierte el registro anterior en un comprobante."
+      }
+    ]
+  },
+  {
+    "id": "validacion_0_1",
+    "familia": "validacion_escenario0",
+    "split": "validacion",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Escribe una guía para regar plantas de interior."
+      }
+    ]
+  },
+  {
+    "id": "validacion_1_1",
+    "familia": "validacion_escenario1",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 65,
+        "fin": 77,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Completa el formulario de atención. Identificador de la persona: 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "validacion_2_1",
+    "familia": "validacion_escenario2",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 43,
+        "fin": 64,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "¿Puedes redactar una invitación dirigida a persona1@example.test?"
+      }
+    ]
+  },
+  {
+    "id": "validacion_3_1",
+    "familia": "validacion_escenario3",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 28,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "El cliente dejó +56987654321 como número para devolverle la llamada."
+      }
+    ]
+  },
+  {
+    "id": "validacion_4_1",
+    "familia": "validacion_escenario4",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 46,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "A quien corresponda: certifico que Pedro Lagos entregó sus antecedentes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_5_1",
+    "familia": "validacion_escenario5",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 55,
+        "fin": 75,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Envía la encomienda al domicilio particular ubicado en Calle Imaginaria 101."
+      }
+    ]
+  },
+  {
+    "id": "validacion_6_1",
+    "familia": "validacion_escenario6",
+    "split": "validacion",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 23,
+        "fin": 34,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 60,
+        "fin": 68,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En la ficha clínica de Pedro Lagos figura un diagnóstico de diabetes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_7_1",
+    "familia": "validacion_escenario7",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 14,
+        "fin": 25,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 63,
+        "fin": 84,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 93,
+        "fin": 105,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Destinatario: Pedro Lagos. Para confirmar la entrega escribe a persona1@example.test o marca +56987654321."
+      }
+    ]
+  },
+  {
+    "id": "validacion_8_1",
+    "familia": "validacion_escenario8",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 27,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 60,
+        "fin": 71,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Acta: comparece Pedro Lagos. La firma corresponde también a Pedro Lagos."
+      }
+    ]
+  },
+  {
+    "id": "validacion_9_1",
+    "familia": "validacion_escenario9",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 20,
+        "fin": 31,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Deja registrado que Pedro Lagos retiró el paquete."
+      },
+      {
+        "role": "user",
+        "content": "Ahora convierte el registro anterior en un comprobante."
+      }
+    ]
+  },
+  {
+    "id": "validacion_0_2",
+    "familia": "validacion_escenario0",
+    "split": "validacion",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Escribe una guía para regar plantas de interior."
+      }
+    ]
+  },
+  {
+    "id": "validacion_1_2",
+    "familia": "validacion_escenario1",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 65,
+        "fin": 77,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Completa el formulario de atención. Identificador de la persona: 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "validacion_2_2",
+    "familia": "validacion_escenario2",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 43,
+        "fin": 64,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "¿Puedes redactar una invitación dirigida a persona2@example.test?"
+      }
+    ]
+  },
+  {
+    "id": "validacion_3_2",
+    "familia": "validacion_escenario3",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 28,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "El cliente dejó +56987654322 como número para devolverle la llamada."
+      }
+    ]
+  },
+  {
+    "id": "validacion_4_2",
+    "familia": "validacion_escenario4",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 45,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "A quien corresponda: certifico que Inés Araya entregó sus antecedentes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_5_2",
+    "familia": "validacion_escenario5",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 55,
+        "fin": 75,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Envía la encomienda al domicilio particular ubicado en Calle Imaginaria 102."
+      }
+    ]
+  },
+  {
+    "id": "validacion_6_2",
+    "familia": "validacion_escenario6",
+    "split": "validacion",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 23,
+        "fin": 33,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 67,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En la ficha clínica de Inés Araya figura un diagnóstico de diabetes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_7_2",
+    "familia": "validacion_escenario7",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 14,
+        "fin": 24,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 62,
+        "fin": 83,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 92,
+        "fin": 104,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Destinatario: Inés Araya. Para confirmar la entrega escribe a persona2@example.test o marca +56987654322."
+      }
+    ]
+  },
+  {
+    "id": "validacion_8_2",
+    "familia": "validacion_escenario8",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 26,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 69,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Acta: comparece Inés Araya. La firma corresponde también a Inés Araya."
+      }
+    ]
+  },
+  {
+    "id": "validacion_9_2",
+    "familia": "validacion_escenario9",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 20,
+        "fin": 30,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Deja registrado que Inés Araya retiró el paquete."
+      },
+      {
+        "role": "user",
+        "content": "Ahora convierte el registro anterior en un comprobante."
+      }
+    ]
+  },
+  {
+    "id": "validacion_0_3",
+    "familia": "validacion_escenario0",
+    "split": "validacion",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Escribe una guía para regar plantas de interior."
+      }
+    ]
+  },
+  {
+    "id": "validacion_1_3",
+    "familia": "validacion_escenario1",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 65,
+        "fin": 77,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Completa el formulario de atención. Identificador de la persona: 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "validacion_2_3",
+    "familia": "validacion_escenario2",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 43,
+        "fin": 64,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "¿Puedes redactar una invitación dirigida a persona3@example.test?"
+      }
+    ]
+  },
+  {
+    "id": "validacion_3_3",
+    "familia": "validacion_escenario3",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 28,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "El cliente dejó +56987654323 como número para devolverle la llamada."
+      }
+    ]
+  },
+  {
+    "id": "validacion_4_3",
+    "familia": "validacion_escenario4",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 47,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "A quien corresponda: certifico que Carlos Leiva entregó sus antecedentes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_5_3",
+    "familia": "validacion_escenario5",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 55,
+        "fin": 75,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Envía la encomienda al domicilio particular ubicado en Calle Imaginaria 103."
+      }
+    ]
+  },
+  {
+    "id": "validacion_6_3",
+    "familia": "validacion_escenario6",
+    "split": "validacion",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 23,
+        "fin": 35,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 61,
+        "fin": 69,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En la ficha clínica de Carlos Leiva figura un diagnóstico de diabetes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_7_3",
+    "familia": "validacion_escenario7",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 14,
+        "fin": 26,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 64,
+        "fin": 85,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 94,
+        "fin": 106,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Destinatario: Carlos Leiva. Para confirmar la entrega escribe a persona3@example.test o marca +56987654323."
+      }
+    ]
+  },
+  {
+    "id": "validacion_8_3",
+    "familia": "validacion_escenario8",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 28,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 61,
+        "fin": 73,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Acta: comparece Carlos Leiva. La firma corresponde también a Carlos Leiva."
+      }
+    ]
+  },
+  {
+    "id": "validacion_9_3",
+    "familia": "validacion_escenario9",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 20,
+        "fin": 32,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Deja registrado que Carlos Leiva retiró el paquete."
+      },
+      {
+        "role": "user",
+        "content": "Ahora convierte el registro anterior en un comprobante."
+      }
+    ]
+  },
+  {
+    "id": "validacion_0_4",
+    "familia": "validacion_escenario0",
+    "split": "validacion",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Escribe una guía para regar plantas de interior."
+      }
+    ]
+  },
+  {
+    "id": "validacion_1_4",
+    "familia": "validacion_escenario1",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 65,
+        "fin": 77,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Completa el formulario de atención. Identificador de la persona: 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "validacion_2_4",
+    "familia": "validacion_escenario2",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 43,
+        "fin": 64,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "¿Puedes redactar una invitación dirigida a persona4@example.test?"
+      }
+    ]
+  },
+  {
+    "id": "validacion_3_4",
+    "familia": "validacion_escenario3",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 28,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "El cliente dejó +56987654324 como número para devolverle la llamada."
+      }
+    ]
+  },
+  {
+    "id": "validacion_4_4",
+    "familia": "validacion_escenario4",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 45,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "A quien corresponda: certifico que Sara Muñoz entregó sus antecedentes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_5_4",
+    "familia": "validacion_escenario5",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 55,
+        "fin": 75,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Envía la encomienda al domicilio particular ubicado en Calle Imaginaria 104."
+      }
+    ]
+  },
+  {
+    "id": "validacion_6_4",
+    "familia": "validacion_escenario6",
+    "split": "validacion",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 23,
+        "fin": 33,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 67,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En la ficha clínica de Sara Muñoz figura un diagnóstico de diabetes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_7_4",
+    "familia": "validacion_escenario7",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 14,
+        "fin": 24,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 62,
+        "fin": 83,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 92,
+        "fin": 104,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Destinatario: Sara Muñoz. Para confirmar la entrega escribe a persona4@example.test o marca +56987654324."
+      }
+    ]
+  },
+  {
+    "id": "validacion_8_4",
+    "familia": "validacion_escenario8",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 26,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 69,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Acta: comparece Sara Muñoz. La firma corresponde también a Sara Muñoz."
+      }
+    ]
+  },
+  {
+    "id": "validacion_9_4",
+    "familia": "validacion_escenario9",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 20,
+        "fin": 30,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Deja registrado que Sara Muñoz retiró el paquete."
+      },
+      {
+        "role": "user",
+        "content": "Ahora convierte el registro anterior en un comprobante."
+      }
+    ]
+  },
+  {
+    "id": "validacion_0_5",
+    "familia": "validacion_escenario0",
+    "split": "validacion",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Escribe una guía para regar plantas de interior."
+      }
+    ]
+  },
+  {
+    "id": "validacion_1_5",
+    "familia": "validacion_escenario1",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 65,
+        "fin": 77,
+        "categoria": "run"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Completa el formulario de atención. Identificador de la persona: 12.345.678-5."
+      }
+    ]
+  },
+  {
+    "id": "validacion_2_5",
+    "familia": "validacion_escenario2",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 43,
+        "fin": 64,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "¿Puedes redactar una invitación dirigida a persona5@example.test?"
+      }
+    ]
+  },
+  {
+    "id": "validacion_3_5",
+    "familia": "validacion_escenario3",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 28,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "El cliente dejó +56987654325 como número para devolverle la llamada."
+      }
+    ]
+  },
+  {
+    "id": "validacion_4_5",
+    "familia": "validacion_escenario4",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 45,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "A quien corresponda: certifico que Bruno Vera entregó sus antecedentes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_5_5",
+    "familia": "validacion_escenario5",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 55,
+        "fin": 75,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Envía la encomienda al domicilio particular ubicado en Calle Imaginaria 105."
+      }
+    ]
+  },
+  {
+    "id": "validacion_6_5",
+    "familia": "validacion_escenario6",
+    "split": "validacion",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 23,
+        "fin": 33,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 67,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En la ficha clínica de Bruno Vera figura un diagnóstico de diabetes."
+      }
+    ]
+  },
+  {
+    "id": "validacion_7_5",
+    "familia": "validacion_escenario7",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 14,
+        "fin": 24,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 62,
+        "fin": 83,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 92,
+        "fin": 104,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Destinatario: Bruno Vera. Para confirmar la entrega escribe a persona5@example.test o marca +56987654325."
+      }
+    ]
+  },
+  {
+    "id": "validacion_8_5",
+    "familia": "validacion_escenario8",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 16,
+        "fin": 26,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 69,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Acta: comparece Bruno Vera. La firma corresponde también a Bruno Vera."
+      }
+    ]
+  },
+  {
+    "id": "validacion_9_5",
+    "familia": "validacion_escenario9",
+    "split": "validacion",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 20,
+        "fin": 30,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Deja registrado que Bruno Vera retiró el paquete."
+      },
+      {
+        "role": "user",
+        "content": "Ahora convierte el registro anterior en un comprobante."
+      }
+    ]
+  }
+]
