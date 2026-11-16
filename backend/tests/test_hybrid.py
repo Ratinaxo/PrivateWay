@@ -46,16 +46,13 @@ class Slm:
         return True
     async def juzgar(self, instruccion, entrada, esquema):
         self.entradas.append(entrada)
-        hs = list(entrada["regex"])
+        hs = []
         for m in entrada["mensajes"]:
             for texto, categoria in [("Ana Torres", "persona"), ("diabetes", "salud")]:
                 if texto in m["texto"]:
-                    i = m["texto"].index(texto)
-                    hs.append(dict(id=f"s{len(hs)}", mensaje=m["indice"], inicio=i,
-                                   fin=i+len(texto), categoria=categoria, texto=texto,
+                    hs.append(dict(mensaje=m["indice"], categoria=categoria, texto=texto,
                                    persona_asociada=categoria == "salud"))
-        accion = "bloquear" if any(h["categoria"] == "salud" for h in hs) else "seudonimizar" if hs else "permitir"
-        juicio = dict(accion=accion, hallazgos=hs, seleccionados=[h["id"] for h in hs],
+        juicio = dict(hallazgos=hs,
                       referencias=["art2_0"], justificacion="Criterio experimental.")
         if self.editar:
             juicio = self.editar(juicio)
@@ -97,13 +94,10 @@ MUTACIONES = [
     lambda j: "no es JSON",
     lambda j: {**j, "referencias": ["inventada"]},
     lambda j: {**j, "referencias": []},
-    lambda j: {**j, "accion": "permitir"},
-    lambda j: {**j, "seleccionados": []},
-    lambda j: {**j, "hallazgos": []},
-    lambda j: {**j, "hallazgos": [{**h, "fin": h["fin"]+1} for h in j["hallazgos"]]},
-    lambda j: {**j, "hallazgos": [{**h, "mensaje": 99} for h in j["hallazgos"]]},
-    lambda j: {**j, "hallazgos": j["hallazgos"] * 2},
     lambda j: {**j, "campo_extra": "inyeccion"},
+    lambda j: {**j, "hallazgos": [{**h, "mensaje": 99} for h in j["hallazgos"]]},
+    lambda j: {**j, "hallazgos": [{**h, "texto": "valor inventado"} for h in j["hallazgos"]]},
+    lambda j: {**j, "hallazgos": [{**h, "persona_asociada": True} for h in j["hallazgos"]]},
 ]
 
 
@@ -136,7 +130,8 @@ def cliente(p, tmp_path, monkeypatch, auditoria=None):
 def test_juicio_invalido_no_transmite(editar, tmp_path, monkeypatch):
     c, espia = cliente(pipeline(editar), tmp_path, monkeypatch)
     r = c.post("/api/v1/secure-chat", headers={"Authorization": "Bearer " + TOKEN},
-               json={"model": "pw-simulado", "messages": [{"role": "user", "content": "a@example.test"}]})
+               json={"model": "pw-simulado", "messages": [{"role": "user",
+                     "content": "a@example.test Ana Torres tiene diabetes"}]})
     assert r.status_code == 503
     assert not espia.llamadas
     assert "a@example.test" not in r.text

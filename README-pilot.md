@@ -54,14 +54,16 @@ La ingesta activa una versión completa dentro de una transacción y no modifica
 previas. Repetirla con el mismo manifiesto y encoder no duplica fragmentos.
 
 Cobertura inicial: RUN, correo, teléfono, persona, dirección y salud. Sin hallazgos se
-permite; identificadores se sustituyen por marcadores; salud asociada a persona se bloquea.
-Es una regla experimental del proyecto, no una conclusión jurídica universal.
+permite; identificadores se sustituyen por marcadores; los hallazgos de salud bloquean.
+El SLM informa entidades contextuales con texto literal y mensaje; el gateway calcula sus
+offsets, agrega directamente los hallazgos REGEX y aplica la regla experimental. Es una
+regla del piloto, no una conclusión jurídica universal.
 
-El modelo propone y el código valida. No puede descartar hallazgos REGEX. Citas ajenas al
-contexto, incoherencia de acción, offsets incorrectos, formato incompleto, colisiones de
-marcadores, falta de evidencia y fallos técnicos detienen el envío. El modo híbrido nunca
-retrocede a REGEX automáticamente. La pertenencia de una cita no certifica su pertinencia:
-esa dimensión necesita evaluación humana.
+El SLM no propone la acción ni offsets: el gateway deriva la acción y las posiciones desde
+sus hallazgos textuales. Citas ajenas al contexto, texto de entidad ausente, formato
+incompleto, colisiones de marcadores, falta de evidencia y fallos técnicos detienen el
+envío. El modo híbrido nunca retrocede a REGEX automáticamente. La pertenencia de una cita
+no certifica su pertinencia: esa dimensión necesita evaluación humana.
 
 Los mensajes del historial también se analizan. Las instrucciones dentro de cualquier rol
 son datos para el analizador. No se implementa restitución todavía. La respuesta conserva

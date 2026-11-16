@@ -18,7 +18,7 @@ La configuración actual del modelo todavía no alcanza calidad suficiente para 
   embeddings normalizados multilingual-e5-large de 1024 dimensiones.
 - Pipeline `REGEX → RAG → SLM → validación → tratamiento`, aplicado también al historial.
 - Cobertura inicial de RUN, correo, teléfono, persona, dirección y salud. El SLM propone
-  permitir, seudonimizar o bloquear; el gateway valida y ejecuta el criterio experimental.
+  entidades contextuales; el gateway calcula offsets, agrega REGEX y aplica el criterio experimental.
 - Controles de esquema, offsets, referencias y conservación de hallazgos REGEX. Los errores
   detienen el envío; el modo híbrido no vuelve automáticamente al modo REGEX.
 - Justificaciones y trazas en auditoría cifrada, códigos de fallo técnico y readiness que
@@ -45,6 +45,9 @@ cuando no se activa expresamente el laboratorio híbrido.
 
 El detalle de latencias, recursos y errores está en [el informe del piloto](pilot/REPORT.md).
 Los resultados son preliminares, con datos sintéticos y una pasada por configuración.
+Después de esa medición se simplificó el contrato de salida para eliminar offsets, selección
+por ids y acciones generadas por el modelo. Esta refinación aún no tiene resultados medidos;
+las cifras del informe corresponden al contrato anterior y deben reproducirse antes de fusionar.
 
 ## Cómo reproducirlo
 
