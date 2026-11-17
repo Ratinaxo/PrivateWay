@@ -7,6 +7,7 @@ PrivateWay es un proyecto de tesis que desarrolla una interfaz conversacional un
 El laboratorio integrado con vLLM, E5 y pgvector está documentado en [README-pilot.md](README-pilot.md).
 Usa configuración y volúmenes propios, datos sintéticos y proveedor simulado.
 El resumen de implementación, resultados y pendientes está en [README-CAMBIOS-PILOTO.md](README-CAMBIOS-PILOTO.md).
+La corrección y repetición de pruebas del 17 de noviembre está documentada en [README-CORRECCIONES-PRUEBAS.md](README-CORRECCIONES-PRUEBAS.md).
 
 - Git
 - Docker con Docker Compose o Docker Desktop.

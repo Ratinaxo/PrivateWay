@@ -1,5 +1,7 @@
 # Cambios del piloto vLLM + RAG
 
+Actualización posterior: ver [correcciones y repetición de pruebas del 17 de noviembre](README-CORRECCIONES-PRUEBAS.md).
+
 Estado al 14 de noviembre de 2026: infraestructura e integración implementadas y probadas.
 La configuración actual del modelo todavía no alcanza calidad suficiente para el flujo funcional.
 

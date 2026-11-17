@@ -9,6 +9,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ["docker", "compose", "--env-file", ".env.pilot", "-f", "compose.pilot.yaml"]
@@ -18,10 +19,19 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke-only", action="store_true")
     parser.add_argument("--limite", type=int)
+    parser.add_argument("--output-dir", type=Path)
     args = parser.parse_args()
     os.chdir(ROOT)
-    salida = ROOT / "pilot/results"
-    salida.mkdir(exist_ok=True)
+    salida = args.output_dir.resolve() if args.output_dir else ROOT / "pilot/results" / datetime.datetime.now(ZoneInfo("America/Santiago")).strftime("%Y%m%d-%H%M%S")
+    base = (ROOT / "pilot/results").resolve()
+    if not salida.is_relative_to(base):
+        parser.error("output-dir debe estar dentro de pilot/results")
+    if salida.exists() and any(salida.iterdir()):
+        parser.error("Usar una carpeta vacia para no mezclar ejecuciones")
+    salida.mkdir(parents=True,exist_ok=True)
+    metadata = dict(fecha_chile=datetime.datetime.now(ZoneInfo("America/Santiago")).date().isoformat(),
+                    limite=args.limite, estado="en_curso", split="desarrollo")
+    (salida/"run.json").write_text(json.dumps(metadata,indent=2),encoding="utf-8")
     env = dict(l.split("=",1) for l in (ROOT / ".env.pilot").read_text().splitlines() if "=" in l and not l.startswith("#"))
     # Esperar únicamente disponibilidad; nunca reintentar solicitudes de usuario.
     deadline = time.monotonic() + 180
@@ -33,6 +43,8 @@ def main():
         except (urllib.error.URLError, TimeoutError):
             pass
         if time.monotonic() > deadline:
+            metadata.update(estado="no_disponible",aprobada=False)
+            (salida/"run.json").write_text(json.dumps(metadata,indent=2),encoding="utf-8")
             raise RuntimeError("Gateway no listo después de 180 segundos")
         time.sleep(3)
     casos = [("Hola mundo", 200,"permitir"), ("La persona solicitante se llama Ana Torres.",200,"seudonimizar"),
@@ -57,8 +69,10 @@ def main():
     (salida / "smoke.json").write_text(json.dumps(smoke, indent=2), encoding="utf-8")
     print(json.dumps({"smoke":smoke}), flush=True)
     if args.smoke_only:
-        if any(s["estado"] != s["esperado"] or
-               (s["accion_esperada"] != "bloquear" and s["accion"] != s["accion_esperada"]) for s in smoke):
+        from report_pilot import smoke_correcto
+        metadata.update(estado="smoke_completo",aprobada=all(smoke_correcto(s) for s in smoke))
+        (salida/"run.json").write_text(json.dumps(metadata,indent=2),encoding="utf-8")
+        if not metadata["aprobada"]:
             raise SystemExit(1)
         return
     stop = threading.Event()
@@ -84,7 +98,7 @@ def main():
             for n in (1,5,10):
                 comando = COMPOSE + ["exec","-T","backend","python","-m","backend.gateway.evaluate",
                     "--modo",modo,"--nivel",nivel,"--split","desarrollo","--concurrencia",str(n),
-                    "--salida",f"/pilot/results/{nivel}-{modo}-dev-c{n}.json"]
+                    "--salida",f'/pilot/results/{salida.relative_to(base).as_posix()}/{nivel}-{modo}-dev-c{n}.json']
                 print(f"Evaluando {nivel}/{modo}, concurrencia {n}", flush=True)
                 if args.limite:
                     comando += ["--limite", str(args.limite)]
@@ -94,7 +108,16 @@ def main():
         th.join(timeout=25)
     versiones = subprocess.run(COMPOSE+["images","--format","json"],capture_output=True,text=True,check=True)
     (salida / "imagenes.json").write_text(versiones.stdout,encoding="utf-8")
+    from report_pilot import smoke_correcto
+    flujos = [json.loads(p.read_text(encoding="utf-8")) for p in salida.glob("flujo-*-dev-c*.json")]
+    metadata.update(estado="completo",aprobada=all(smoke_correcto(s) for s in smoke) and all(
+        f["errores"] == 0 and f["aciertos_accion"] == f["n"]
+        and not any(s["apariciones_expuestas"] for s in f["muestras"]) for f in flujos))
+    (salida/"run.json").write_text(json.dumps(metadata,indent=2),encoding="utf-8")
     print("Evaluaciones de desarrollo terminadas; validacion reservada sin ejecutar.", flush=True)
+    print(f"Resultados: {salida}",flush=True)
+    if not metadata["aprobada"]:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

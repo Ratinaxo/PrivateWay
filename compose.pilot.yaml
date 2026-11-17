@@ -17,13 +17,13 @@ services:
       VLLM_NO_USAGE_STATS: '1'
       DO_NOT_TRACK: '1'
     command:
-      - --model=/models/qwen
+      - --model=/models/${PRIVATEWAY_SLM_FOLDER:-qwen}
       - --served-model-name=privateway-slm
       - --dtype=half
       - --quantization=awq_marlin
       - --max-model-len=${PRIVATEWAY_SLM_CONTEXT:-4096}
       - --max-num-seqs=1
-      - --max-num-batched-tokens=${PRIVATEWAY_SLM_CONTEXT:-4096}
+      - --max-num-batched-tokens=${PRIVATEWAY_PREFILL_TOKENS:-512}
       - --gpu-memory-utilization=${PRIVATEWAY_GPU_MEMORY:-0.75}
       - --enforce-eager
       - --swap-space=0
@@ -43,7 +43,9 @@ services:
     environment:
       PRIVATEWAY_EMBEDDINGS_TOKEN: ${PRIVATEWAY_EMBEDDINGS_TOKEN:?Ejecutar setup}
       PRIVATEWAY_E5_REVISION: ${PRIVATEWAY_E5_REVISION:?Descargar modelos}
-    volumes: [./pilot/models:/models:ro]
+    volumes:
+      - ./pilot/models:/models:ro
+      - ./services/embeddings/app.py:/app/app.py:ro
     networks: [local]
     healthcheck:
       test: [CMD, python, -c, "import os,urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8001/ready',headers={'Authorization':'Bearer '+os.environ['PRIVATEWAY_EMBEDDINGS_TOKEN']}),timeout=5)"]
@@ -70,6 +72,9 @@ services:
       PRIVATEWAY_PIPELINE: hibrido
       PRIVATEWAY_SLM_URL: http://slm:8000
       PRIVATEWAY_SLM_MODEL: privateway-slm
+      PRIVATEWAY_SLM_FOLDER: ${PRIVATEWAY_SLM_FOLDER:-qwen}
+      PRIVATEWAY_PREFILL_TOKENS: ${PRIVATEWAY_PREFILL_TOKENS:-512}
+      PRIVATEWAY_GPU_MEMORY: ${PRIVATEWAY_GPU_MEMORY:-0.75}
       PRIVATEWAY_SLM_CONTEXT: ${PRIVATEWAY_SLM_CONTEXT:-4096}
       PRIVATEWAY_SLM_TOKEN: ${PRIVATEWAY_SLM_TOKEN}
       PRIVATEWAY_EMBEDDINGS_URL: http://embeddings:8001
