@@ -58,7 +58,9 @@ def ready(authorization: str | None = Header(default=None)):
 def segmentos(data: Texto, authorization: str | None = Header(default=None)):
     autorizado(authorization)
     # Offset mapping preserva caracteres del original. Reservar tokens para prefijo y especiales.
-    tokens = model.tokenizer(data.texto, add_special_tokens=False, return_offsets_mapping=True)
+    # El tokenizer rápido comparte estado de padding/truncamiento con encode.
+    with lock:
+        tokens = model.tokenizer(data.texto, add_special_tokens=False, return_offsets_mapping=True)
     offsets = tokens["offset_mapping"]
     return {"segmentos": [data.texto[offsets[i][0]:offsets[min(i+447,len(offsets)-1)][1]]
                            for i in range(0, len(offsets), 448)] or [data.texto]}
@@ -68,9 +70,9 @@ def segmentos(data: Texto, authorization: str | None = Header(default=None)):
 def encode(data: Entrada, authorization: str | None = Header(default=None)):
     autorizado(authorization)
     textos = [f"{data.tipo}: {t}" for t in data.textos]
-    if any(len(model.tokenizer(t)["input_ids"]) > 512 for t in textos):
-        raise HTTPException(422, "ENTRADA_EXCEDE_512_TOKENS")
     with lock:
+        if any(len(model.tokenizer(t)["input_ids"]) > 512 for t in textos):
+            raise HTTPException(422, "ENTRADA_EXCEDE_512_TOKENS")
         vectores = model.encode(textos, batch_size=4, normalize_embeddings=True,
                                 show_progress_bar=False).tolist()
     return {"vectores": vectores}

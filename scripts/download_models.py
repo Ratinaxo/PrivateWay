@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import time
 import urllib.request
+import argparse
 
 ROOT = Path(__file__).resolve().parents[1]
 MODELS = [("Qwen/Qwen2.5-3B-Instruct-AWQ", "qwen", "qwen-research"),
@@ -37,10 +38,16 @@ def descargar(repo, revision, nombre, destino):
 
 
 def main():
-    manifiesto = []
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--slm",choices=["3b","7b"],default="3b")
+    args = parser.parse_args()
     lock = ROOT / "pilot/models.lock.json"
     previo = json.loads(lock.read_text()) if lock.exists() else []
-    for repo, carpeta, licencia in MODELS:
+    manifiesto = {m["carpeta"]:m for m in previo}
+    modelos = list(MODELS)
+    if args.slm == "7b":
+        modelos[0] = ("Qwen/Qwen2.5-7B-Instruct-AWQ","qwen7b","apache-2.0")
+    for repo, carpeta, licencia in modelos:
         revision = next((m["revision"] for m in previo if m["repo"] == repo), "main")
         with obtener(f"https://huggingface.co/api/models/{repo}/revision/{revision}") as r:
             meta = json.load(r)
@@ -54,12 +61,12 @@ def main():
         for n in nombres:
             with (ROOT / "pilot/models" / carpeta / n).open("rb") as f:
                 archivos[n] = hashlib.file_digest(f, "sha256").hexdigest()
-        manifiesto.append(dict(repo=repo, carpeta=carpeta, revision=revision,
-                               tokenizer_revision=revision, licencia=licencia, sha256=archivos))
+        manifiesto[carpeta] = dict(repo=repo, carpeta=carpeta, revision=revision,
+                               tokenizer_revision=revision, licencia=licencia, sha256=archivos)
         lock.parent.mkdir(exist_ok=True)
-        lock.write_text(json.dumps(manifiesto, indent=2), encoding="utf-8")
+        lock.write_text(json.dumps(list(manifiesto.values()), indent=2), encoding="utf-8")
     env = ROOT / ".env.pilot"
-    revision = next(m["revision"] for m in manifiesto if m["carpeta"] == "e5")
+    revision = manifiesto["e5"]["revision"]
     lines = env.read_text().splitlines()
     env.write_text("\n".join(f"PRIVATEWAY_E5_REVISION={revision}" if l.startswith("PRIVATEWAY_E5_REVISION=") else l
                               for l in lines) + "\n", encoding="utf-8")

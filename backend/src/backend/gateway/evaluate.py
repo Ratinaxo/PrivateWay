@@ -5,6 +5,7 @@ import collections
 import json
 import math
 import hashlib
+import os
 from pathlib import Path
 import time
 
@@ -12,6 +13,7 @@ from .contracts import SolicitudChat, Mensaje
 from .pipeline import ContextoEjecucion
 from .hybrid import desde_entorno
 from .hybrid import INSTRUCCION, JuicioSLM
+from .slm_protocol import VERSION, ExtraccionPorCategoria, Nombres, AccionPropuesta, Fundamento
 
 
 def metricas(tp, fp, fn):
@@ -80,9 +82,13 @@ async def evaluar(args):
                 expuestas = sum(solicitud.messages[m].content[a:b] in enviados[m].content
                                 for m,a,b,_ in verdad)
             muestras.append(dict(id=caso["id"], error=error, latencia_ms=latencia,
+                                  tp=len(verdad & pred),fp=len(pred-verdad),fn=len(verdad-pred),
+                                  categorias_omitidas=sorted({h[3] for h in verdad-pred}),
                                   accion=d.accion.value if d and args.nivel == "flujo" else None,
                                   esperada=caso["accion"] if args.nivel == "flujo" else None,
                                   transmitida=transmitida, apariciones_expuestas=expuestas,
+                                  apariciones_anotadas=len(verdad),
+                                  recuperados=(d.traza.get("recuperados") or [f["id"] for f in d.traza.get("fragmentos",[])]) if d else [],
                                   tiempos=d.traza.get("tiempos", {}) if d else {}))
     await uno(datos[0], guardar=False)  # Calentamiento, fuera de métricas.
     inicio = time.perf_counter()
@@ -100,10 +106,16 @@ async def evaluar(args):
     resumen = dict(modo=args.modo, nivel=args.nivel, split=args.split, concurrencia=args.concurrencia,
                    versiones=await p.recuperador.versiones(), modelo=p.slm.modelo,
                    revision_modelo=p.slm.revision,
+                   repo_modelo=p.slm.repo,
+                   protocolo=VERSION,
                    transporte="API ASGI local con auditoria y simulador" if banco else "analizador directo",
                    contexto_tokens=p.slm.contexto,
+                   prefill_tokens=int(os.environ.get("PRIVATEWAY_PREFILL_TOKENS","512")),
+                   gpu_memory=float(os.environ.get("PRIVATEWAY_GPU_MEMORY","0.75")),
                    instrucciones_sha256=hashlib.sha256(INSTRUCCION.encode()).hexdigest(),
                    esquema_sha256=hashlib.sha256(json.dumps(JuicioSLM.model_json_schema(),sort_keys=True).encode()).hexdigest(),
+                   esquemas_wire_sha256=hashlib.sha256(json.dumps([ExtraccionPorCategoria.model_json_schema(),Nombres.model_json_schema(),AccionPropuesta.model_json_schema(),Fundamento.model_json_schema()],sort_keys=True).encode()).hexdigest(),
+                   dataset_sha256=hashlib.sha256((args.datos/f"{args.split}.json").read_bytes()).hexdigest(),
                    n=len(muestras), errores=sum(bool(s["error"]) for s in muestras),
                    bloqueos=sum(s["accion"] == "bloquear" for s in muestras),
                    transmitidas=sum(s["transmitida"] for s in muestras),

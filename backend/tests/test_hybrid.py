@@ -196,3 +196,38 @@ def test_banco_flujo_mide_envio_real_y_bloqueo(tmp_path, monkeypatch):
                 assert "Ana Torres" not in enviados[0].content
         await b.cerrar()
     asyncio.run(ejecutar())
+
+
+def test_nuevo_protocolo_rechaza_accion_contradictoria_sin_transmitir(tmp_path, monkeypatch):
+    from backend.gateway.slm_protocol import analizar as etapas
+    class Modelo:
+        modelo="test"
+        llamadas=0
+        async def analizar_etapas(self,entrada):
+            return await etapas(self,entrada)
+        async def juzgar(self,*args):
+            self.llamadas += 1
+            if self.llamadas == 1:
+                return json.dumps(dict(persona=[dict(texto="Ana Torres",mensaje=0)],
+                                       direccion=[],salud=[],run=[],correo=[],telefono=[]))
+            return json.dumps(dict(accion="permitir"))
+    p=pipeline()
+    p.slm=Modelo()
+    c,espia=cliente(p,tmp_path,monkeypatch)
+    r=c.post("/api/v1/secure-chat",headers={"Authorization":"Bearer "+TOKEN},
+             json={"model":"pw-simulado","messages":[{"role":"user","content":"Ana Torres"}]})
+    assert r.status_code == 503 and not espia.llamadas
+
+
+def test_deteccion_intrinseca_no_necesita_decision():
+    p=pipeline()
+    class Modelo:
+        async def extraer_entidades(self,entrada):
+            return [dict(id="s0",mensaje=0,inicio=0,fin=10,categoria="persona",texto="Ana Torres",persona_asociada=False)]
+        async def analizar_etapas(self,*args):
+            raise AssertionError("La deteccion no debe pedir tratamiento")
+    p.slm=Modelo()
+    s=SolicitudChat(model="pw-simulado",messages=[Mensaje(role="user",content="Ana Torres")])
+    d=asyncio.run(p.detectar(s,CTX))
+    assert not d.validacion_completa and d.mensajes_salida is None
+    assert d.traza["hallazgos"][0]["texto"] == "Ana Torres"

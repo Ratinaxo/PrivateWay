@@ -34,5 +34,24 @@
       "tokenizer.json": "62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626",
       "tokenizer_config.json": "efb5c0d09722e5fe59a462cd2a9976ee216d55b037597d997cd3fe833216da15"
     }
+  },
+  {
+    "repo": "Qwen/Qwen2.5-7B-Instruct-AWQ",
+    "carpeta": "qwen7b",
+    "revision": "b25037543e9394b818fdfca67ab2a00ecc7dd641",
+    "tokenizer_revision": "b25037543e9394b818fdfca67ab2a00ecc7dd641",
+    "licencia": "apache-2.0",
+    "sha256": {
+      "README.md": "0d578d3f0fc880ccaea80fcbfd49161b7c9b98e20e235b0a03608b9958c622af",
+      "config.json": "ec0c1f5f875ad8bc1f78c5140c22dbdde1b55478442ad358e7a4d9ecf947a327",
+      "generation_config.json": "9df8ac8558514924f3481a609f1e5590ab4416efc600b12ad805155d79581c59",
+      "merges.txt": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3",
+      "model-00001-of-00002.safetensors": "4ad6e70f93823a9228931615e04b5e9293854c236fb4bd5f85e27f3b600605ad",
+      "model-00002-of-00002.safetensors": "920a8cc9d3c81668f18014a69bb041ab8bab22a31640a713f90f5e7580e2f126",
+      "model.safetensors.index.json": "559b6859f37625080bf49eea80806ecc2f859a13b316b7fae2ff4432b6308e36",
+      "tokenizer.json": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+      "tokenizer_config.json": "5b5d4f65d0acd3b2d56a35b56d374a36cbc1c8fa5cf3b3febbbfabf22f359583",
+      "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    }
   }
 ]
