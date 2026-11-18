@@ -43,21 +43,23 @@ def test_conserva_regex_y_deduplica_mismo_span():
     assert anclar(ex,[{"indice":0,"texto":"a@example.test"}],[previo]) == [previo]
 
 
-def test_leyes_solo_al_decisor_y_no_reparacion_de_accion():
+def test_accion_determinista_y_fuentes_solo_al_fundamento():
     class Cliente:
         def __init__(self): self.llamadas=[]
         async def juzgar(self, instrucciones, datos, esquema):
             self.llamadas.append(datos)
             if len(self.llamadas) == 1:
                 return wire([entidad("Ana Torres")])
-            return json.dumps({"accion":"permitir"})
+            return json.dumps({"referencias":["art2"],
+                               "justificacion":"La política técnica del piloto se aplica al hallazgo."})
     c = Cliente()
     entrada = dict(mensajes=[dict(indice=0,texto="Ana Torres")],regex=[],fragmentos=[dict(id="art2",texto="Ley sobre salud.")])
-    with pytest.raises(ValueError,match="criterio contradictorio"):
-        asyncio.run(analizar(c,entrada))
+    salida = json.loads(asyncio.run(analizar(c,entrada)))
+    assert salida["accion"] == "seudonimizar"
+    assert salida["seleccionados"] == ["s0"]
     assert "fuentes" not in c.llamadas[0] and "fragmentos" not in c.llamadas[0]
     assert "Ana Torres" not in json.dumps(c.llamadas[1])
-    assert "fuentes" not in c.llamadas[1]
+    assert c.llamadas[1]["accion"] == "seudonimizar"
     assert len(c.llamadas) == 2
 
 
@@ -73,22 +75,21 @@ def test_no_hay_segunda_llamada_si_extraccion_inventada():
     assert c.llamadas == 1
 
 
-def test_extraccion_decision_fundamento_separados():
+def test_extraccion_y_fundamento_separados_con_accion_local():
     class Cliente:
         def __init__(self): self.llamadas=[]
         async def juzgar(self,instruccion,datos,esquema):
             self.llamadas.append(datos)
             if len(self.llamadas) == 1:
                 return wire([entidad("Ana Torres")])
-            if len(self.llamadas) == 2:
-                return json.dumps({"accion":"seudonimizar"})
             return json.dumps({"referencias":["art2"],"justificacion":"Dato personal; criterio técnico del piloto."})
     c=Cliente()
     r=json.loads(asyncio.run(analizar(c,dict(mensajes=[dict(indice=0,texto="Ana Torres")],regex=[],
                                               fragmentos=[dict(id="art2",texto="Definición legal")]))))
-    assert len(c.llamadas) == 3
-    assert "fuentes" not in c.llamadas[1]
-    assert c.llamadas[2]["accion"] == "seudonimizar"
+    assert len(c.llamadas) == 2
+    assert "fuentes" not in c.llamadas[0]
+    assert c.llamadas[1]["accion"] == "seudonimizar"
+    assert c.llamadas[1]["politica"]
     assert r["hallazgos"][0]["fin"] == 10
     assert r["accion"] == "seudonimizar"
 

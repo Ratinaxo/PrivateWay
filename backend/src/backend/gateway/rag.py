@@ -75,9 +75,10 @@ class RecuperadorPostgres:
         if actual != version["embeddings"]:
             raise ValueError("encoder distinto al indice")
         textos = []
-        categorias = ", ".join(sorted({h["categoria"] for h in regex}))
         for m in mensajes:
-            textos.extend(await self.embeddings.segmentos(m.content + "\nCategorías: " + categorias))
+            # RAG consulta el prompt original; las salidas de detectores no se
+            # interpolan ni modifican el texto que analiza el SLM.
+            textos.extend(await self.embeddings.segmentos(m.content))
         vectores = await self.embeddings.codificar(textos, "query")
         def buscar():
             candidatos = {}

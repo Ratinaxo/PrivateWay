@@ -1,6 +1,6 @@
 # Piloto vLLM + RAG
 
-La configuración corregida usa Qwen2.5-7B-Instruct-AWQ en GPU, E5-large en CPU y PostgreSQL/pgvector.
+El laboratorio usa Qwen2.5-3B-Instruct-AWQ en GPU, E5-large en CPU y PostgreSQL/pgvector.
 Un proxy de entrada publica el gateway en `127.0.0.1:8082`. Los demás servicios operan en una red Docker
 interna. Las descargas se hacen antes del arranque y los modelos se montan de solo lectura.
 Este laboratorio no transmite consultas a proveedores reales.
@@ -13,8 +13,8 @@ eliminaría la base y las evidencias del piloto.
 
 ```powershell
 uv sync --project backend --dev
-backend/.venv/Scripts/python.exe scripts/setup_pilot.py --slm 7b
-backend/.venv/Scripts/python.exe scripts/download_models.py --slm 7b
+backend/.venv/Scripts/python.exe scripts/setup_pilot.py
+backend/.venv/Scripts/python.exe scripts/download_models.py
 backend/.venv/Scripts/python.exe scripts/prepare_corpus.py
 backend/.venv/Scripts/python.exe scripts/generate_pilot_data.py
 docker compose --env-file .env.pilot -f compose.pilot.yaml build
@@ -26,12 +26,7 @@ curl.exe http://127.0.0.1:8082/ready
 
 `.env.pilot` contiene claves propias, ignoradas por Git. El script no cambia `.env`
 ni regenera claves existentes. `models.lock.json` conserva revisión de pesos y tokenizer,
-licencias y hashes. Qwen 7B usa licencia `apache-2.0`; se conserva también el candidato
-anterior de 3B (`qwen-research`) para comparación. Para seleccionarlo, usar `--slm 3b`
-en ambos scripts y recrear los servicios. No se borran ni sustituyen sus pesos.
-
-El prefill se procesa en lotes de 512 tokens para reducir memoria temporal. Eso permite
-conservar contexto 4096 y presupuesto GPU 75 % en la RTX 3070; no trunca el prompt.
+licencias y hashes. Qwen 3B usa licencia `qwen-research`: este es un piloto académico.
 
 Si el arranque indica falta de memoria, reducir `PRIVATEWAY_SLM_CONTEXT` a 2048 en
 `.env.pilot`, recrear `slm` y `backend` y repetir el diagnóstico. Eso reduce el presupuesto
@@ -59,29 +54,20 @@ La ingesta activa una versión completa dentro de una transacción y no modifica
 previas. Repetirla con el mismo manifiesto y encoder no duplica fragmentos.
 
 Cobertura inicial: RUN, correo, teléfono, persona, dirección y salud. Sin hallazgos se
-permite; identificadores se sustituyen por marcadores; salud asociada a persona se bloquea.
-Es una regla experimental del proyecto, no una conclusión jurídica universal.
+permite; identificadores se sustituyen por marcadores; los hallazgos de salud bloquean.
+El SLM informa entidades contextuales con texto literal y mensaje; el gateway calcula sus
+offsets, agrega directamente los hallazgos REGEX y aplica la regla experimental. Es una
+regla del piloto, no una conclusión jurídica universal.
 
-El protocolo tiene tres etapas: extracción por categoría sin legislación, juicio técnico
-sobre hallazgos verificados y fundamento legislativo mediante RAG. La detección intrínseca
-ejecuta solo la primera. La extracción por categoría incorpora una revisión especializada
-en los mensajes donde no se detectaron nombres. El texto original se mantiene para el
-análisis y los hallazgos REGEX se conservan localmente. No son reintentos de una petición fallida.
-El modelo extrae valores literales; el código calcula sus offsets
-exactos en el mensaje y expande apariciones repetidas. No se aproximan ni corrigen textos
-inventados. El modelo propone la acción y el código valida su coherencia: no se fuerza ni
-se reemplaza una decisión inválida. No puede descartar hallazgos REGEX. Citas ajenas al
-contexto, incoherencia de acción, offsets incorrectos, formato incompleto, colisiones de
-marcadores, falta de evidencia y fallos técnicos detienen el envío. El modo híbrido nunca
-retrocede a REGEX automáticamente. La pertenencia de una cita no certifica su pertinencia:
-esa dimensión necesita evaluación humana.
+El SLM devuelve solo texto literal, categoría y mensaje. El gateway deriva la acción y las
+posiciones, y registra los fragmentos recuperados sin pedir al modelo que los vuelva a citar.
+Texto de entidad ausente, formato incompleto, colisiones de marcadores, falta de evidencia
+y fallos técnicos detienen el envío. El modo híbrido nunca retrocede a REGEX automáticamente.
+La pertinencia de las fuentes para cada decisión necesita evaluación humana.
 
 Los mensajes del historial también se analizan. Las instrucciones dentro de cualquier rol
 son datos para el analizador. No se implementa restitución todavía. La respuesta conserva
 el control REGEX existente, cuya cobertura semántica es limitada.
-El servicio E5 protege con el mismo bloqueo la segmentación, la validación de longitud
-y la codificación: su tokenizador comparte estado y no debe usarse simultáneamente desde
-varios hilos.
 
 ## Pruebas y mediciones
 
@@ -98,21 +84,44 @@ Repetir para `--modo regex`, `slm`, `hibrido` y concurrencias `1`, `5`, `10`.
 Para reproducir la batería inicial y capturar recursos del stack:
 
 ```powershell
-backend/.venv/Scripts/python.exe scripts/run_pilot.py --limite 10 --output-dir pilot/results/mi-repeticion
-backend/.venv/Scripts/python.exe scripts/report_pilot.py --results pilot/results/mi-repeticion --output pilot/MI-REPORTE.md
+backend/.venv/Scripts/python.exe scripts/run_pilot.py --limite 10
+backend/.venv/Scripts/python.exe scripts/report_pilot.py
 ```
+
+Para ejecutar la misma matriz de 12 configuraciones sobre el benchmark ampliado, usa
+`uv run python scripts/run_pilot.py --dataset v2`. La batería utiliza solo desarrollo y
+guarda archivos con prefijo `v2-`; `--limite N` conserva la opción de pantalla exploratoria.
+Al terminar se exportan automáticamente `pilot/results/export/experimentos.csv`,
+`metricas_categoria.csv`, `casos.csv`, `recuperacion.csv` y `manifest.json`. También se
+puede regenerar la exportación sin repetir inferencias con
+`uv run python scripts/export_experiments.py`.
+
+Los CSV contienen configuración, modelo/revisión, hashes del prompt y esquema, TP/FP/FN,
+precisión, recall, F1/F2 micro y macro, detección exacta y parcial, latencias p50/p95/p99,
+throughput, errores, decisiones, transmisiones, exposición exacta/parcial y aciertos RAG.
+`metricas_categoria.csv` calcula intervalos percentiles del 95 % mediante bootstrap por
+familia cuando el JSON incluye conteos por caso; resultados antiguos usan Wilson por span y
+se marcan como aproximación que no corrige dependencia. Los identificadores y conteos por
+caso se conservan, pero no se exporta el texto de consultas ni valores personales.
+
+El lanzador detiene la batería si alguno de los tres casos smoke falla; corrige ese fallo
+antes de consumir tiempo GPU en las comparaciones.
+
+En Linux, si el usuario necesita `sudo` para acceder al daemon Docker, ejecuta la batería
+con `PRIVATEWAY_DOCKER_SUDO=1 uv run python scripts/run_pilot.py --limite 10`. El lanzador
+solicita la contraseña una vez y usa `sudo -n` solo para los comandos Docker; `uv` y Python
+siguen ejecutándose como el usuario actual. El smoke test no requiere acceso al daemon.
 
 Omitir `--limite 10` para ejecutar todos los casos de desarrollo. El conjunto de validación
 solo se ejecuta explícitamente con el evaluador; el lanzador nunca lo utiliza.
-Cada repetición requiere una carpeta nueva o vacía. La batería devuelve código distinto
-de cero si fallan las acciones esperadas, hay errores de flujo o queda PII literal anotada
-en los envíos. El reporte deriva sus conclusiones de esa ejecución; no usa valores fijos.
-Los registros detallados conservan TP/FP/FN por caso y metadatos de modelo, protocolo y corpus.
 
-Usar `--nivel deteccion` para comparar los tres detectores y `--nivel flujo --modo hibrido`
-para evaluar decisiones, exposición y transmisión. El primer caso calienta los servicios y no integra las métricas. La evaluación guarda
-precisión, recall y F2 por categoría, coincidencia exacta de spans, Recall@4, errores,
-bloqueos, transmisiones, exposición literal, tiempos por etapa y p50/p95/p99.
+Usar `--nivel deteccion` para comparar REGEX, SLM y unión híbrida sobre los mismos mensajes.
+En el modo híbrido, REGEX y SLM reciben el prompt original y se ejecutan en paralelo; el
+gateway fusiona sus hallazgos y filtra el texto antes del proveedor. `--nivel flujo
+--modo hibrido` evalúa acciones, exposición y transmisión por API ASGI con proveedor espía.
+La evaluación guarda precisión, recall, F1/F2 micro y macro, spans exactos/parciales,
+Recall@4, matriz de acciones, falsos bloqueos, errores, exposición exacta/parcial condicionada
+a transmisión confirmada, tiempos por etapa y latencias p50/p95/p99.
 Los fallos técnicos cuentan como omisiones en detección y no como bloqueos del modelo.
 Las métricas indefinidas se reportan como `null`.
 
@@ -121,6 +130,15 @@ consultas documentales. Las anotaciones son sintéticas y preliminares: requiere
 humana. El conjunto reservado no debe utilizarse para ajustar prompts; la ejecución final
 de tesis requiere un corpus independiente y protocolo cerrado. No se utiliza el conjunto
 reservado durante la puesta en marcha.
+
+La versión ampliada del benchmark está en [`pilot/datasets/v2/`](pilot/datasets/v2/README.md):
+600 casos de desarrollo, 1.200 de validación reservada y 200 de reto. La metodología,
+los tamaños de muestra y los criterios propuestos a partir del marco NIST están en
+[`pilot/ANEXO_EVALUACION_NIST.md`](pilot/ANEXO_EVALUACION_NIST.md).
+El cierre de resultados del pipeline, estado de prompts y plan de adaptación de datos
+externos está en [`pilot/CIERRE_RESULTADOS_PIPELINE.md`](pilot/CIERRE_RESULTADOS_PIPELINE.md).
+La comparación planificada de Qwen/E5, Qwen/BGE-M3, Qwen3.5/E5 y Qwen3.5/BGE-M3 está en
+[`pilot/MATRIZ_MODELOS.md`](pilot/MATRIZ_MODELOS.md); la validación reservada sigue protegida.
 
 Para observar recursos durante una ejecución:
 

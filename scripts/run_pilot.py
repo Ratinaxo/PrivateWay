@@ -9,29 +9,37 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPOSE = ["docker", "compose", "--env-file", ".env.pilot", "-f", "compose.pilot.yaml"]
+DOCKER = (["sudo", "-n", "docker"] if os.environ.get("PRIVATEWAY_DOCKER_SUDO") == "1"
+          else ["docker"])
+COMPOSE = DOCKER + ["compose", "--env-file", ".env.pilot", "-f", "compose.pilot.yaml"]
+
+
+def escribir_atomico(ruta, contenido):
+    temporal = ruta.with_name(f".{ruta.name}.{os.getpid()}.tmp")
+    temporal.write_text(contenido, encoding="utf-8")
+    os.replace(temporal, ruta)
+
+
+def renovar_sudo():
+    if os.environ.get("PRIVATEWAY_DOCKER_SUDO") == "1":
+        subprocess.run(["sudo", "-v"], check=True)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke-only", action="store_true")
     parser.add_argument("--limite", type=int)
-    parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--dataset", choices=["piloto", "v2"], default="piloto",
+                        help="piloto: benchmark inicial; v2: benchmark ampliado de desarrollo")
     args = parser.parse_args()
     os.chdir(ROOT)
-    salida = args.output_dir.resolve() if args.output_dir else ROOT / "pilot/results" / datetime.datetime.now(ZoneInfo("America/Santiago")).strftime("%Y%m%d-%H%M%S")
-    base = (ROOT / "pilot/results").resolve()
-    if not salida.is_relative_to(base):
-        parser.error("output-dir debe estar dentro de pilot/results")
-    if salida.exists() and any(salida.iterdir()):
-        parser.error("Usar una carpeta vacia para no mezclar ejecuciones")
-    salida.mkdir(parents=True,exist_ok=True)
-    metadata = dict(fecha_chile=datetime.datetime.now(ZoneInfo("America/Santiago")).date().isoformat(),
-                    limite=args.limite, estado="en_curso", split="desarrollo")
-    (salida/"run.json").write_text(json.dumps(metadata,indent=2),encoding="utf-8")
+    if not args.smoke_only:
+        # Solicita/renueva la contraseña; los comandos Docker usan sudo -n.
+        renovar_sudo()
+    salida = ROOT / "pilot/results"
+    salida.mkdir(exist_ok=True)
     env = dict(l.split("=",1) for l in (ROOT / ".env.pilot").read_text().splitlines() if "=" in l and not l.startswith("#"))
     # Esperar únicamente disponibilidad; nunca reintentar solicitudes de usuario.
     deadline = time.monotonic() + 180
@@ -43,8 +51,6 @@ def main():
         except (urllib.error.URLError, TimeoutError):
             pass
         if time.monotonic() > deadline:
-            metadata.update(estado="no_disponible",aprobada=False)
-            (salida/"run.json").write_text(json.dumps(metadata,indent=2),encoding="utf-8")
             raise RuntimeError("Gateway no listo después de 180 segundos")
         time.sleep(3)
     casos = [("Hola mundo", 200,"permitir"), ("La persona solicitante se llama Ana Torres.",200,"seudonimizar"),
@@ -64,24 +70,25 @@ def main():
                           accion_esperada=accion_esperada,
                           accion=body.get("decision",{}).get("accion"),
                           codigo=body.get("error",{}).get("code")))
-        (salida / "smoke.json").write_text(json.dumps(smoke, indent=2), encoding="utf-8")
+        escribir_atomico(salida / "smoke.json", json.dumps(smoke, indent=2))
         print(json.dumps({"caso_smoke":len(smoke), **smoke[-1]}), flush=True)
-    (salida / "smoke.json").write_text(json.dumps(smoke, indent=2), encoding="utf-8")
+    escribir_atomico(salida / "smoke.json", json.dumps(smoke, indent=2))
     print(json.dumps({"smoke":smoke}), flush=True)
+    fallos_smoke = [s for s in smoke if s["estado"] != s["esperado"] or
+                    (s["accion_esperada"] != "bloquear" and s["accion"] != s["accion_esperada"])]
+    if fallos_smoke:
+        raise SystemExit(f"Smoke test falló en {len(fallos_smoke)} de {len(smoke)} casos; se detiene la batería.")
     if args.smoke_only:
-        from report_pilot import smoke_correcto
-        metadata.update(estado="smoke_completo",aprobada=all(smoke_correcto(s) for s in smoke))
-        (salida/"run.json").write_text(json.dumps(metadata,indent=2),encoding="utf-8")
-        if not metadata["aprobada"]:
-            raise SystemExit(1)
         return
     stop = threading.Event()
+    marca = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-{os.getpid()}"
+    ruta_recursos = salida / f"recursos-{marca}.jsonl"
     def recursos():
-        with (salida / "recursos.jsonl").open("a", encoding="utf-8") as f:
+        with ruta_recursos.open("x", encoding="utf-8") as f:
             while not stop.is_set():
                 muestra = {"utc":datetime.datetime.now(datetime.timezone.utc).isoformat()}
                 for nombre, comando in [
-                    ("docker",["docker","stats","--no-stream","--format","{{json .}}"]),
+                    ("docker",DOCKER+["stats","--no-stream","--format","{{json .}}"]),
                     ("gpu",["nvidia-smi","--query-gpu=memory.used,utilization.gpu","--format=csv,noheader,nounits"])]:
                     try:
                         r = subprocess.run(comando, capture_output=True, text=True, timeout=20)
@@ -96,28 +103,26 @@ def main():
     try:
         for nivel,modo in [("deteccion",m) for m in ("regex","slm","hibrido")] + [("flujo","hibrido")]:
             for n in (1,5,10):
+                prefijo = "v2-" if args.dataset == "v2" else ""
+                datos = "/pilot/datasets/v2" if args.dataset == "v2" else "/pilot/datasets"
                 comando = COMPOSE + ["exec","-T","backend","python","-m","backend.gateway.evaluate",
+                    "--datos", datos,
                     "--modo",modo,"--nivel",nivel,"--split","desarrollo","--concurrencia",str(n),
-                    "--salida",f'/pilot/results/{salida.relative_to(base).as_posix()}/{nivel}-{modo}-dev-c{n}.json']
+                    "--salida",f"/pilot/results/{prefijo}{nivel}-{modo}-dev-c{n}.json"]
                 print(f"Evaluando {nivel}/{modo}, concurrencia {n}", flush=True)
                 if args.limite:
                     comando += ["--limite", str(args.limite)]
+                renovar_sudo()
                 subprocess.run(comando, check=True)
     finally:
         stop.set()
         th.join(timeout=25)
+    renovar_sudo()
     versiones = subprocess.run(COMPOSE+["images","--format","json"],capture_output=True,text=True,check=True)
-    (salida / "imagenes.json").write_text(versiones.stdout,encoding="utf-8")
-    from report_pilot import smoke_correcto
-    flujos = [json.loads(p.read_text(encoding="utf-8")) for p in salida.glob("flujo-*-dev-c*.json")]
-    metadata.update(estado="completo",aprobada=all(smoke_correcto(s) for s in smoke) and all(
-        f["errores"] == 0 and f["aciertos_accion"] == f["n"]
-        and not any(s["apariciones_expuestas"] for s in f["muestras"]) for f in flujos))
-    (salida/"run.json").write_text(json.dumps(metadata,indent=2),encoding="utf-8")
+    escribir_atomico(salida / "imagenes.json", versiones.stdout)
+    subprocess.run([os.environ.get("PYTHON", "python"), "scripts/export_experiments.py"],
+                   cwd=ROOT, check=True)
     print("Evaluaciones de desarrollo terminadas; validacion reservada sin ejecutar.", flush=True)
-    print(f"Resultados: {salida}",flush=True)
-    if not metadata["aprobada"]:
-        raise SystemExit(1)
 
 
 if __name__ == "__main__":

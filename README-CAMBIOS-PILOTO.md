@@ -21,9 +21,10 @@ La configuración actual del modelo todavía no alcanza calidad suficiente para 
 - Pipeline `REGEX → RAG → SLM → validación → tratamiento`, aplicado también al historial.
 - Cobertura inicial de RUN, correo, teléfono, persona, dirección y salud. El SLM propone
   entidades contextuales; el gateway calcula offsets, agrega REGEX y aplica el criterio experimental.
-- Controles de esquema, offsets, referencias y conservación de hallazgos REGEX. Los errores
+- Controles de esquema, offsets derivados por código, registro de fragmentos y conservación de hallazgos REGEX. Los errores
   detienen el envío; el modo híbrido no vuelve automáticamente al modo REGEX.
-- Justificaciones y trazas en auditoría cifrada, códigos de fallo técnico y readiness que
+- Motivos y trazas en auditoría cifrada, con reglas experimentales diferenciadas de las
+  referencias jurídicas contextuales; códigos de fallo técnico y readiness que
   comprueba modelo, embeddings, base de datos y corpus activo.
 - Evaluador de detección y de flujo por la API, proveedor espía simulado y captura de recursos.
   Se prepararon 120 consultas sintéticas y 24 preguntas de recuperación.
@@ -47,9 +48,30 @@ cuando no se activa expresamente el laboratorio híbrido.
 
 El detalle de latencias, recursos y errores está en [el informe del piloto](pilot/REPORT.md).
 Los resultados son preliminares, con datos sintéticos y una pasada por configuración.
-Después de esa medición se simplificó el contrato de salida para eliminar offsets, selección
-por ids y acciones generadas por el modelo. Esta refinación aún no tiene resultados medidos;
-las cifras del informe corresponden al contrato anterior y deben reproducirse antes de fusionar.
+Después de esa medición se simplificó el contrato de salida. En una corrida posterior del
+contrato `piloto-v3` sobre los diez primeros casos de desarrollo, regex obtuvo F2 0,439,
+SLM 0,238 e híbrido 0,397. El flujo híbrido tuvo cinco transmisiones, cuatro bloqueos y un
+fallo técnico por configuración; una aparición anotada quedó visible en el envío de
+`desarrollo_7_0`. Los tres smoke tests por HTTP devolvieron 503. Esta corrida confirma que
+esa versión todavía no es apta para uso funcional.
+
+La iteración `piloto-v4` eliminó la asociación de salud y las citas y justificaciones que
+generaba el SLM, causas registradas como `SLM_SALUD_AMBIGUA`, `SLM_ASOCIACION_INVALIDA` y
+`SLM_SALIDA_INCOMPLETA`. `piloto-v5` añadió ejemplos de formato para nombre y salud y se midió
+en la corrida siguiente.
+
+## Corrida de desarrollo del contrato `piloto-v5`
+
+En los primeros diez casos, y con cero errores técnicos, REGEX obtuvo F2 0,439; SLM F2
+0,431 (precisión 0,833; recall 0,385); e híbrido F2 0,873 (precisión 1,000; recall 0,846).
+El flujo híbrido transmitió los diez casos, acertó ocho acciones y dejó dos spans anotados
+visibles: una dirección en `desarrollo_5_0` y el dato de salud en `desarrollo_6_0`. El smoke
+HTTP pasó sus tres ejemplos, pero el conjunto también muestra que el contexto «Resume este
+texto» degrada la extracción de dirección y salud. La validación reservada sigue intacta.
+
+El prompt `piloto-v6` añade ejemplos sintéticos de dirección y de hallazgos con ese prefijo.
+Es una hipótesis de mejora aún sin medir; el flujo no se considera listo mientras no se
+reduzca a cero la exposición en desarrollo y mejore la exactitud de acciones.
 
 ## Cómo reproducirlo
 

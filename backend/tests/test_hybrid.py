@@ -1,6 +1,7 @@
 """Pruebas de frontera: ningún juicio inválido llega al proveedor."""
 import asyncio
 import json
+import threading
 import pytest
 from fastapi.testclient import TestClient
 
@@ -11,6 +12,7 @@ from backend.gateway.contracts import SolicitudChat, Mensaje
 from backend.gateway.api import create_app
 from backend.gateway.config import Configuracion, RutaModelo
 from backend.gateway.providers import ProveedorSimulado
+from backend.gateway.metrics import metricas, exposicion_solicitud
 
 CTX = ContextoEjecucion("evt_" + "a" * 32, "prueba")
 TOKEN = "prueba-hibrido-token-largo-123456789"
@@ -48,12 +50,11 @@ class Slm:
         self.entradas.append(entrada)
         hs = []
         for m in entrada["mensajes"]:
-            for texto, categoria in [("Ana Torres", "persona"), ("diabetes", "salud")]:
+            for texto, categoria in [("a@example.test", "correo"), ("Ana Torres", "persona"),
+                                     ("diabetes", "salud")]:
                 if texto in m["texto"]:
-                    hs.append(dict(mensaje=m["indice"], categoria=categoria, texto=texto,
-                                   persona_asociada=categoria == "salud"))
-        juicio = dict(hallazgos=hs,
-                      referencias=["art2_0"], justificacion="Criterio experimental.")
+                    hs.append(dict(mensaje=m["indice"], categoria=categoria, texto=texto))
+        juicio = dict(hallazgos=hs)
         if self.editar:
             juicio = self.editar(juicio)
         return juicio if isinstance(juicio, str) else json.dumps(juicio)
@@ -72,7 +73,123 @@ def test_sin_regex_igual_invoca_slm_y_detecta_persona():
     d = analizar(p, "Resume el caso de Ana Torres")
     assert d.accion.value == "seudonimizar"
     assert "Ana Torres" not in d.mensajes_salida[0].content
-    assert p.slm.entradas[0]["regex"] == []
+    assert p.slm.entradas[0]["mensajes"][0]["texto"] == "Resume el caso de Ana Torres"
+    assert "regex" not in p.slm.entradas[0]
+
+
+def test_dos_detectores_independientes_se_fusionan_y_reportan_metricas():
+    texto = "a@example.test y Ana Torres tiene diabetes"
+    esperado = {
+        (0, 0, 14, "correo"),
+        (0, 17, 27, "persona"),
+        (0, 34, 42, "salud"),
+    }
+    # Ablación REGEX.
+    p_regex = pipeline()
+    pred_regex = {(0, h.inicio, h.fin, h.categoria.value) for h in p_regex._detectar(texto)}
+    # Ablación SLM: recibe exactamente el prompt original, sin hallazgos REGEX.
+    p_slm = PipelineHibrido(recuperador=Rag(), slm=Slm(), detector=Detector(), usar_regex=False)
+    d_slm = asyncio.run(p_slm.detectar(
+        SolicitudChat(model="pw-simulado", messages=[Mensaje(role="user", content=texto)]), CTX))
+    pred_slm = {(h["mensaje"], h["inicio"], h["fin"], h["categoria"]) for h in d_slm.traza["hallazgos"]}
+    # Fusión ejecuta ambas etapas y seudonimiza su unión antes del envío.
+    p_union = pipeline()
+    d_union = analizar(p_union, texto)
+    pred_union = {(h["mensaje"], h["inicio"], h["fin"], h["categoria"])
+                  for h in d_union.traza["hallazgos"]}
+    assert p_slm.slm.entradas[0]["mensajes"][0]["texto"] == texto
+    assert "regex" not in p_slm.slm.entradas[0]
+    assert pred_regex == {(0, 0, 14, "correo")}
+    assert pred_slm == esperado
+    assert pred_union == esperado
+    assert metricas(len(pred_regex & esperado), len(pred_regex - esperado),
+                    len(esperado - pred_regex))["recall"] == pytest.approx(1/3)
+    assert metricas(len(pred_slm & esperado), len(pred_slm - esperado),
+                    len(esperado - pred_slm))["f2"] == pytest.approx(1.0)
+    assert metricas(len(pred_union & esperado), len(pred_union - esperado),
+                    len(esperado - pred_union))["f2"] == pytest.approx(1.0)
+    assert d_union.accion.value == "bloquear"
+    d_filtrado = analizar(pipeline(), "a@example.test y Ana Torres")
+    assert d_filtrado.accion.value == "seudonimizar"
+    assert "a@example.test" not in d_filtrado.mensajes_salida[0].content
+    assert "Ana Torres" not in d_filtrado.mensajes_salida[0].content
+    fuentes = next(h["fuentes"] for h in d_union.traza["hallazgos"] if h["categoria"] == "correo")
+    assert fuentes == ["regex", "slm"]
+
+
+def test_regex_y_slm_corren_en_paralelo_sobre_el_mismo_prompt():
+    inicio_regex, inicio_slm = threading.Event(), threading.Event()
+    class DetectorSincronizado:
+        def analizar(self, texto):
+            inicio_regex.set()
+            assert inicio_slm.wait(2), "el SLM no comenzó mientras REGEX analizaba"
+            return []
+    class SlmSincronizado(Slm):
+        async def juzgar(self, instruccion, entrada, esquema):
+            assert entrada["mensajes"][0]["texto"] == "Hola mundo"
+            assert "regex" not in entrada
+            inicio_slm.set()
+            return json.dumps({"hallazgos": []})
+    p = PipelineHibrido(recuperador=Rag(), slm=SlmSincronizado(),
+                        detector=DetectorSincronizado())
+    d = analizar(p, "Hola mundo")
+    assert d.accion.value == "permitir"
+
+
+def test_pipeline_real_usa_extraccion_validada_y_offsets_del_slm():
+    class SlmConExtraccion(Slm):
+        entrada_extraccion = None
+
+        async def extraer_entidades(self, entrada):
+            self.entrada_extraccion = entrada
+            texto = entrada["mensajes"][0]["texto"]
+            inicio = texto.index("Ana Torres")
+            return [dict(id="s0", categoria="persona", texto="Ana Torres", mensaje=0,
+                         inicio=inicio, fin=inicio + len("Ana Torres"),
+                         persona_asociada=False)]
+
+    slm = SlmConExtraccion()
+    p = PipelineHibrido(recuperador=Rag(), slm=slm, detector=Detector())
+    d = analizar(p, "Ana Torres")
+    assert slm.entrada_extraccion["mensajes"][0]["texto"] == "Ana Torres"
+    assert "regex" not in slm.entrada_extraccion
+    assert d.accion.value == "seudonimizar"
+    assert d.mensajes_salida[0].content == "[PW_PERSONA_1]"
+
+
+def test_juicio_final_recibe_la_union_y_sus_referencias():
+    class SlmConJuicio(Slm):
+        final = None
+        async def decidir_y_fundamentar(self, entrada, hallazgos):
+            self.final = hallazgos
+            accion = "seudonimizar" if hallazgos else "permitir"
+            return json.dumps({
+                "accion": accion,
+                "seleccionados": [h["id"] for h in hallazgos],
+                "referencias": ["art2_0"],
+                "justificacion": "La clasificación se apoya en la fuente recuperada y la regla del piloto.",
+            })
+    slm = SlmConJuicio()
+    p = PipelineHibrido(recuperador=Rag(), slm=slm, detector=Detector())
+    d = analizar(p, "a@example.test y Ana Torres")
+    assert d.accion.value == "seudonimizar"
+    assert {h["categoria"] for h in slm.final} == {"correo", "persona"}
+    assert d.traza["referencias"] == ["art2_0"]
+    assert d.traza["seleccionados"] == [h["id"] for h in slm.final]
+
+
+def test_decision_final_incoherente_falla_cerrado_sin_transmitir(tmp_path, monkeypatch):
+    class SlmDecisionInvalida(Slm):
+        async def decidir_y_fundamentar(self, entrada, hallazgos):
+            return json.dumps({"accion": "permitir", "seleccionados": [],
+                               "referencias": ["art2_0"], "justificacion": "Inválida."})
+    p = PipelineHibrido(recuperador=Rag(), slm=SlmDecisionInvalida(), detector=Detector())
+    c, espia = cliente(p, tmp_path, monkeypatch)
+    r = c.post("/api/v1/secure-chat", headers={"Authorization": "Bearer " + TOKEN},
+               json={"model": "pw-simulado", "messages": [{"role": "user",
+                     "content": "a@example.test"}]})
+    assert r.status_code == 503
+    assert not espia.llamadas
 
 
 def test_historial_completo_y_roles_conservados():
@@ -92,12 +209,10 @@ def test_tres_acciones(texto, accion):
 
 MUTACIONES = [
     lambda j: "no es JSON",
-    lambda j: {**j, "referencias": ["inventada"]},
-    lambda j: {**j, "referencias": []},
     lambda j: {**j, "campo_extra": "inyeccion"},
     lambda j: {**j, "hallazgos": [{**h, "mensaje": 99} for h in j["hallazgos"]]},
     lambda j: {**j, "hallazgos": [{**h, "texto": "valor inventado"} for h in j["hallazgos"]]},
-    lambda j: {**j, "hallazgos": [{**h, "persona_asociada": True} for h in j["hallazgos"]]},
+    lambda j: {**j, "hallazgos": [{**h, "categoria": "otra"} for h in j["hallazgos"]]},
 ]
 
 
@@ -182,30 +297,37 @@ def test_banco_flujo_mide_envio_real_y_bloqueo(tmp_path, monkeypatch):
     monkeypatch.setenv("GATEWAY_AUDIT_CONTENT_DIR", str(tmp_path / "cifrado"))
     async def ejecutar():
         b = BancoFlujo(pipeline(), tmp_path / "medicion.jsonl")
-        for texto, envia in [("Ana Torres",True),("Ana Torres tiene diabetes",False)]:
+        tp_acciones = 0
+        exposicion_total = 0
+        for texto, accion, spans in [
+            ("Hola mundo", "permitir", []),
+            ("a@example.test", "seudonimizar", [(0, 0, 14, "correo")]),
+            ("Ana Torres tiene diabetes", "bloquear", [
+                (0, 0, 10, "persona"), (0, 18, 26, "salud")]),
+        ]:
             s = SolicitudChat(model="pw-simulado",messages=[Mensaje(role="user",content=texto)])
             d, error, enviados = await b.ejecutar(s)
             assert error is None
-            assert (enviados is not None) == envia
+            assert d.accion.value == accion
+            tp_acciones += d.accion.value == accion
             if enviados:
-                assert "Ana Torres" not in enviados[0].content
+                exposicion = exposicion_solicitud(s.messages, enviados, spans)
+                exposicion_total += exposicion["expuestas"]
+        assert tp_acciones == 3
+        assert exposicion_total == 0
         await b.cerrar()
     asyncio.run(ejecutar())
 
 
-def test_nuevo_protocolo_rechaza_accion_contradictoria_sin_transmitir(tmp_path, monkeypatch):
-    from backend.gateway.slm_protocol import analizar as etapas
+def test_gateway_rechaza_adaptador_con_juicio_final_contradictorio(tmp_path, monkeypatch):
     class Modelo:
         modelo="test"
-        llamadas=0
-        async def analizar_etapas(self,entrada):
-            return await etapas(self,entrada)
-        async def juzgar(self,*args):
-            self.llamadas += 1
-            if self.llamadas == 1:
-                return json.dumps(dict(persona=[dict(texto="Ana Torres",mensaje=0)],
-                                       direccion=[],salud=[],run=[],correo=[],telefono=[]))
-            return json.dumps(dict(accion="permitir"))
+        async def extraer_entidades(self, entrada):
+            return [dict(id="s0",mensaje=0,inicio=0,fin=10,categoria="persona",
+                         texto="Ana Torres",persona_asociada=False)]
+        async def decidir_y_fundamentar(self, entrada, hallazgos):
+            return json.dumps({"accion":"permitir","seleccionados":[],
+                               "referencias":["art2_0"],"justificacion":"Incoherente."})
     p=pipeline()
     p.slm=Modelo()
     c,espia=cliente(p,tmp_path,monkeypatch)

@@ -11,14 +11,22 @@ from pydantic import BaseModel, Field, ConfigDict
 from sentence_transformers import SentenceTransformer
 
 model = None
-lock = threading.Lock()
+# Tokenizer y encode comparten internamente el tokenizer; excluir ambos con RLock
+# evita carreras entre /segments y /encode sin bloquear la llamada anidada.
+lock = threading.RLock()
+MODELO_ID = os.environ.get("EMBEDDINGS_MODEL_ID", "intfloat/multilingual-e5-large")
+MODELO_TIPO = os.environ.get("EMBEDDINGS_KIND", "e5")
 
 
 @asynccontextmanager
 async def lifespan(app):
     global model
+    if MODELO_TIPO not in {"e5", "bge-m3"}:
+        raise RuntimeError("EMBEDDINGS_KIND debe ser e5 o bge-m3")
     model = SentenceTransformer(os.environ.get("EMBEDDINGS_MODEL", "/models/e5"), device="cpu")
     model.max_seq_length = 512
+    if model.get_sentence_embedding_dimension() != 1024:
+        raise RuntimeError("el esquema pgvector del piloto requiere embeddings de 1024 dimensiones")
     yield
 
 
@@ -49,8 +57,12 @@ class Texto(BaseModel):
 @app.get("/ready")
 def ready(authorization: str | None = Header(default=None)):
     autorizado(authorization)
-    return {"ready": model is not None, "modelo": "intfloat/multilingual-e5-large",
-            "revision": os.environ["PRIVATEWAY_E5_REVISION"], "dimension": 1024,
+    revision_env = "PRIVATEWAY_BGE_M3_REVISION" if MODELO_TIPO == "bge-m3" else "PRIVATEWAY_E5_REVISION"
+    revision = os.environ.get(revision_env)
+    if not revision or revision == "no-descargado":
+        raise HTTPException(503, "REVISION_EMBEDDINGS_NO_CONFIGURADA")
+    return {"ready": model is not None, "modelo": MODELO_ID,
+            "revision": revision, "dimension": model.get_sentence_embedding_dimension(),
             "normalizacion": True, "max_tokens": 512}
 
 
@@ -58,7 +70,6 @@ def ready(authorization: str | None = Header(default=None)):
 def segmentos(data: Texto, authorization: str | None = Header(default=None)):
     autorizado(authorization)
     # Offset mapping preserva caracteres del original. Reservar tokens para prefijo y especiales.
-    # El tokenizer rápido comparte estado de padding/truncamiento con encode.
     with lock:
         tokens = model.tokenizer(data.texto, add_special_tokens=False, return_offsets_mapping=True)
     offsets = tokens["offset_mapping"]
@@ -69,7 +80,8 @@ def segmentos(data: Texto, authorization: str | None = Header(default=None)):
 @app.post("/encode")
 def encode(data: Entrada, authorization: str | None = Header(default=None)):
     autorizado(authorization)
-    textos = [f"{data.tipo}: {t}" for t in data.textos]
+    textos = ([t for t in data.textos] if MODELO_TIPO == "bge-m3"
+              else [f"{data.tipo}: {t}" for t in data.textos])
     with lock:
         if any(len(model.tokenizer(t)["input_ids"]) > 512 for t in textos):
             raise HTTPException(422, "ENTRADA_EXCEDE_512_TOKENS")

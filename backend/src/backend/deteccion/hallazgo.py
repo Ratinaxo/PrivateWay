@@ -31,7 +31,7 @@ class Hallazgo:
     fin: int
     reconocedor: str
     procedencia: Procedencia
-    confianza: float
+    confianza: float | None
     verificado: bool = False
 
     def __post_init__(self) -> None:
@@ -39,5 +39,5 @@ class Hallazgo:
             raise ValueError("el tramo del hallazgo es inválido")
         if len(self.valor) != self.fin - self.inicio:
             raise ValueError("el valor del hallazgo no coincide con el tramo")
-        if not 0.0 <= self.confianza <= 1.0:
+        if self.confianza is not None and not 0.0 <= self.confianza <= 1.0:
             raise ValueError("la confianza debe estar entre 0 y 1")

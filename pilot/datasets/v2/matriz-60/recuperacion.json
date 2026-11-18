@@ -1,0 +1,74 @@
+[
+  {
+    "id": "rag_art2_f_0",
+    "split": "desarrollo",
+    "consulta": "¿Un nombre permite identificar a una persona?",
+    "esperado": "art2_f"
+  },
+  {
+    "id": "rag_art2_f_1",
+    "split": "desarrollo",
+    "consulta": "¿El RUN es un identificador personal?",
+    "esperado": "art2_f"
+  },
+  {
+    "id": "rag_art2_g_0",
+    "split": "desarrollo",
+    "consulta": "¿La información de salud es sensible?",
+    "esperado": "art2_g"
+  },
+  {
+    "id": "rag_art2_g_1",
+    "split": "desarrollo",
+    "consulta": "¿Qué son los datos personales sensibles?",
+    "esperado": "art2_g"
+  },
+  {
+    "id": "rag_art2_l_0",
+    "split": "desarrollo",
+    "consulta": "¿Qué es la seudonimización?",
+    "esperado": "art2_l"
+  },
+  {
+    "id": "rag_art2_l_1",
+    "split": "desarrollo",
+    "consulta": "¿Se puede conservar información adicional separada?",
+    "esperado": "art2_l"
+  },
+  {
+    "id": "rag_art3_c_0",
+    "split": "desarrollo",
+    "consulta": "¿Qué principio limita los datos a lo necesario?",
+    "esperado": "art3_c"
+  },
+  {
+    "id": "rag_art3_c_1",
+    "split": "desarrollo",
+    "consulta": "¿Durante cuánto tiempo pueden conservarse datos?",
+    "esperado": "art3_c"
+  },
+  {
+    "id": "rag_art3_f_0",
+    "split": "desarrollo",
+    "consulta": "¿Qué principio protege frente a filtraciones?",
+    "esperado": "art3_f"
+  },
+  {
+    "id": "rag_art3_f_1",
+    "split": "desarrollo",
+    "consulta": "¿Qué medidas deben ajustarse a la naturaleza del dato?",
+    "esperado": "art3_f"
+  },
+  {
+    "id": "rag_art16bis_0",
+    "split": "desarrollo",
+    "consulta": "¿Cómo se regulan datos relativos a la salud?",
+    "esperado": "art16bis"
+  },
+  {
+    "id": "rag_art16bis_1",
+    "split": "desarrollo",
+    "consulta": "¿Qué reglas se aplican al perfil biológico humano?",
+    "esperado": "art16bis"
+  }
+]

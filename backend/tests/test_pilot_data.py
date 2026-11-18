@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 from backend.gateway.evaluate import metricas
+from backend.gateway.metrics import (coincide_exposicion, macro_por_categoria,
+                                     conteos_parciales, exposicion_solicitud)
 from backend.gateway.rag import vector
 import pytest
 
@@ -23,7 +25,40 @@ def test_fixture_split_y_offsets():
 
 def test_metricas_y_vector():
     assert metricas(1,0,1)["f2"] == pytest.approx(5/9)
+    assert metricas(1,0,1)["f1"] == pytest.approx(2/3)
     assert metricas(0,0,0)["recall"] is None
+
+
+def test_exposicion_detecta_valor_parcial_y_exige_fragmento_en_valor_corto():
+    assert coincide_exposicion("RUN 12345678-9", "Se filtró 12345")
+    assert not coincide_exposicion("Ana", "La respuesta menciona Anabel")
+    assert coincide_exposicion("Ana", "La respuesta contiene Ana.")
+
+
+def test_macro_omite_metricas_no_aplicables_por_separado():
+    macro = macro_por_categoria({
+        "persona": metricas(1, 0, 1),
+        "limpia": metricas(0, 0, 0),
+    })
+    assert macro["precision"] == 1.0
+    assert macro["recall"] == 0.5
+    assert macro["categorias_f2"] == 1
+
+
+def test_metricas_parciales_emparejan_solapamiento_sin_reutilizar_referencia():
+    verdad = {(0, 4, 14, "persona"), (0, 20, 28, "salud")}
+    pred = {(0, 0, 14, "persona"), (0, 21, 28, "salud"), (0, 30, 34, "run")}
+    assert conteos_parciales(verdad, pred) == (2, 1, 0)
+
+
+def test_exposicion_separa_coincidencia_completa_y_parcial():
+    from backend.gateway.contracts import Mensaje
+    original = [Mensaje(role="user", content="RUN 12345678-9 y Ana Torres")]
+    enviado = [Mensaje(role="user", content="RUN 12345 y [PW_PERSONA_1]")]
+    metricas_exp = exposicion_solicitud(original, enviado,
+                                        [(0, 4, 14, "run"), (0, 17, 27, "persona")])
+    assert metricas_exp == {"expuestas": 1, "exactas": 0, "parciales": 1,
+                            "referencias": 2, "tasa": 0.5}
     with pytest.raises(ValueError):
         vector([float("nan")]*1024)
     with pytest.raises(ValueError):

@@ -6,11 +6,12 @@ import os
 from pathlib import Path
 import time
 import urllib.request
-import argparse
 
 ROOT = Path(__file__).resolve().parents[1]
 MODELS = [("Qwen/Qwen2.5-3B-Instruct-AWQ", "qwen", "qwen-research"),
-          ("intfloat/multilingual-e5-large", "e5", "mit")]
+          ("QuantTrio/Qwen3.5-4B-AWQ", "qwen35", "apache-2.0"),
+          ("intfloat/multilingual-e5-large", "e5", "mit"),
+          ("BAAI/bge-m3", "bge-m3", "mit")]
 
 
 def obtener(url):
@@ -38,22 +39,17 @@ def descargar(repo, revision, nombre, destino):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--slm",choices=["3b","7b"],default="3b")
-    args = parser.parse_args()
+    manifiesto = []
     lock = ROOT / "pilot/models.lock.json"
     previo = json.loads(lock.read_text()) if lock.exists() else []
-    manifiesto = {m["carpeta"]:m for m in previo}
-    modelos = list(MODELS)
-    if args.slm == "7b":
-        modelos[0] = ("Qwen/Qwen2.5-7B-Instruct-AWQ","qwen7b","apache-2.0")
-    for repo, carpeta, licencia in modelos:
+    for repo, carpeta, licencia in MODELS:
         revision = next((m["revision"] for m in previo if m["repo"] == repo), "main")
         with obtener(f"https://huggingface.co/api/models/{repo}/revision/{revision}") as r:
             meta = json.load(r)
         revision = meta["sha"]
         nombres = [s["rfilename"] for s in meta["siblings"]
-                   if s["rfilename"].endswith((".safetensors", ".json", ".txt", ".model", ".md"))
+                   if (s["rfilename"].endswith((".safetensors", ".json", ".txt", ".model", ".md"))
+                       or (repo == "BAAI/bge-m3" and s["rfilename"] == "pytorch_model.bin"))
                    and not s["rfilename"].startswith(("onnx/", "openvino/"))]
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             list(pool.map(lambda n: descargar(repo, revision, n, ROOT / "pilot/models" / carpeta / n), nombres))
@@ -61,15 +57,24 @@ def main():
         for n in nombres:
             with (ROOT / "pilot/models" / carpeta / n).open("rb") as f:
                 archivos[n] = hashlib.file_digest(f, "sha256").hexdigest()
-        manifiesto[carpeta] = dict(repo=repo, carpeta=carpeta, revision=revision,
-                               tokenizer_revision=revision, licencia=licencia, sha256=archivos)
-        lock.parent.mkdir(exist_ok=True)
-        lock.write_text(json.dumps(list(manifiesto.values()), indent=2), encoding="utf-8")
+        manifiesto.append(dict(repo=repo, carpeta=carpeta, revision=revision,
+                               tokenizer_revision=revision, licencia=licencia, sha256=archivos))
+    lock.parent.mkdir(exist_ok=True)
+    temporal_lock = lock.with_name(lock.name + ".tmp")
+    temporal_lock.write_text(json.dumps(manifiesto, indent=2), encoding="utf-8")
+    temporal_lock.replace(lock)
     env = ROOT / ".env.pilot"
-    revision = manifiesto["e5"]["revision"]
+    revision = next(m["revision"] for m in manifiesto if m["carpeta"] == "e5")
     lines = env.read_text().splitlines()
-    env.write_text("\n".join(f"PRIVATEWAY_E5_REVISION={revision}" if l.startswith("PRIVATEWAY_E5_REVISION=") else l
-                              for l in lines) + "\n", encoding="utf-8")
+    bge_revision = next(m["revision"] for m in manifiesto if m["carpeta"] == "bge-m3")
+    actualizados = {"PRIVATEWAY_E5_REVISION": revision,
+                    "PRIVATEWAY_BGE_M3_REVISION": bge_revision}
+    for key, value in actualizados.items():
+        if not any(line.startswith(key + "=") for line in lines):
+            lines.append(f"{key}={value}")
+        else:
+            lines = [f"{key}={value}" if line.startswith(key + "=") else line for line in lines]
+    env.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

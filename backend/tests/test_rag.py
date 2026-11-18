@@ -20,3 +20,4 @@ def test_identidad_fragmento_no_colisiona_con_unidad_legal(monkeypatch):
     fs = asyncio.run(r.buscar([Mensaje(role="user",content="hola")], []))
     assert fs[0]["id"] == "art2_f_0"
     assert fs[0]["indice"] == "v1"
+    emb.segmentos.assert_awaited_once_with("hola")

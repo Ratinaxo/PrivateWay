@@ -1,0 +1,1367 @@
+[
+  {
+    "id": "desarrollo_v2_0000",
+    "familia": "desarrollo_limpio_00",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Explica cómo ordenar documentos digitales."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0010",
+    "familia": "desarrollo_limpio_01",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume una receta de pan amasado."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0020",
+    "familia": "desarrollo_limpio_02",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Describe el ciclo del agua para estudiantes."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0030",
+    "familia": "desarrollo_limpio_03",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Prepara una lista de materiales para pintar una pieza."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0040",
+    "familia": "desarrollo_limpio_04",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Redacta instrucciones para respaldar fotografías."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0050",
+    "familia": "desarrollo_limpio_05",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Compara dos métodos para regar plantas."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0060",
+    "familia": "desarrollo_limpio_06",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume una reunión sobre el calendario escolar."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0070",
+    "familia": "desarrollo_limpio_07",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Explica cómo clasificar libros por género."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0080",
+    "familia": "desarrollo_limpio_08",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Escribe una guía breve para preparar té."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0090",
+    "familia": "desarrollo_limpio_09",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Enumera pasos para limpiar una bicicleta."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0100",
+    "familia": "desarrollo_limpio_10",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Describe cómo se forman las nubes."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0110",
+    "familia": "desarrollo_limpio_11",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Redacta una invitación a una feria de ciencias."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0120",
+    "familia": "desarrollo_limpio_12",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume las reglas de un juego de mesa."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0130",
+    "familia": "desarrollo_limpio_13",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Explica cómo cambiar una ampolleta."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0140",
+    "familia": "desarrollo_limpio_14",
+    "split": "desarrollo",
+    "accion": "permitir",
+    "hallazgos": [],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Prepara un itinerario para visitar un museo."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0150",
+    "familia": "desarrollo_pareja_00",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 42,
+        "fin": 54,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 86,
+        "fin": 124,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el RUN 10.000.150-0 y además el correo de contacto contacto-desarrollo-00150@example.test."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0160",
+    "familia": "desarrollo_pareja_01",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 47,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 86,
+        "fin": 124,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el RUN 10.000.160-8; también consta el correo de contacto contacto-desarrollo-00160@example.test."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0170",
+    "familia": "desarrollo_pareja_02",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 46,
+        "fin": 58,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 83,
+        "fin": 121,
+        "categoria": "correo"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el RUN 10.000.170-5 y el correo de contacto contacto-desarrollo-00170@example.test."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0180",
+    "familia": "desarrollo_pareja_03",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 42,
+        "fin": 54,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 88,
+        "fin": 100,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el RUN 10.000.180-2 y además el teléfono de contacto +56900000180."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0190",
+    "familia": "desarrollo_pareja_04",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 47,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 88,
+        "fin": 100,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el RUN 10.000.190-K; también consta el teléfono de contacto +56900000190."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0200",
+    "familia": "desarrollo_pareja_05",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 46,
+        "fin": 58,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 85,
+        "fin": 97,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el RUN 10.000.200-0 y el teléfono de contacto +56900000200."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0210",
+    "familia": "desarrollo_pareja_06",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 42,
+        "fin": 54,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 83,
+        "fin": 100,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el RUN 10.000.210-8 y además la persona titular Violeta Del Solar."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0220",
+    "familia": "desarrollo_pareja_07",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 47,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 83,
+        "fin": 100,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el RUN 10.000.220-5; también consta la persona titular Celeste Del Solar."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0230",
+    "familia": "desarrollo_pareja_08",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 46,
+        "fin": 58,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 80,
+        "fin": 95,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el RUN 10.000.230-2 y la persona titular Clara Del Solar."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0240",
+    "familia": "desarrollo_pareja_09",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 42,
+        "fin": 54,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 88,
+        "fin": 105,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el RUN 10.000.240-K y además el domicilio particular Pasaje Bruma 1240."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0250",
+    "familia": "desarrollo_pareja_10",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 47,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 88,
+        "fin": 111,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el RUN 10.000.250-7; también consta el domicilio particular Calle de la Lluvia 1250."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0260",
+    "familia": "desarrollo_pareja_11",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 46,
+        "fin": 58,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 85,
+        "fin": 102,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el RUN 10.000.260-4 y el domicilio particular Pasaje Bruma 1260."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0270",
+    "familia": "desarrollo_pareja_12",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 42,
+        "fin": 54,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 88,
+        "fin": 104,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el RUN 10.000.270-1 y además el diagnóstico de salud insomnio crónico."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0280",
+    "familia": "desarrollo_pareja_13",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 35,
+        "fin": 47,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 88,
+        "fin": 92,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el RUN 10.000.280-9; también consta el diagnóstico de salud asma."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0290",
+    "familia": "desarrollo_pareja_14",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 46,
+        "fin": 58,
+        "categoria": "run"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 85,
+        "fin": 101,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el RUN 10.000.290-6 y el diagnóstico de salud insomnio crónico."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0300",
+    "familia": "desarrollo_pareja_15",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 57,
+        "fin": 95,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 129,
+        "fin": 141,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el correo de contacto contacto-desarrollo-00300@example.test y además el teléfono de contacto +56900000300."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0310",
+    "familia": "desarrollo_pareja_16",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 50,
+        "fin": 88,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 129,
+        "fin": 141,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el correo de contacto contacto-desarrollo-00310@example.test; también consta el teléfono de contacto +56900000310."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0320",
+    "familia": "desarrollo_pareja_17",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 61,
+        "fin": 99,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 126,
+        "fin": 138,
+        "categoria": "telefono"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el correo de contacto contacto-desarrollo-00320@example.test y el teléfono de contacto +56900000320."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0330",
+    "familia": "desarrollo_pareja_18",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 57,
+        "fin": 95,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 124,
+        "fin": 140,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el correo de contacto contacto-desarrollo-00330@example.test y además la persona titular Violeta Figueroa."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0340",
+    "familia": "desarrollo_pareja_19",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 50,
+        "fin": 88,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 124,
+        "fin": 140,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el correo de contacto contacto-desarrollo-00340@example.test; también consta la persona titular Celeste Figueroa."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0350",
+    "familia": "desarrollo_pareja_20",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 61,
+        "fin": 99,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 121,
+        "fin": 135,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el correo de contacto contacto-desarrollo-00350@example.test y la persona titular Clara Figueroa."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0360",
+    "familia": "desarrollo_pareja_21",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 57,
+        "fin": 95,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 129,
+        "fin": 146,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el correo de contacto contacto-desarrollo-00360@example.test y además el domicilio particular Pasaje Bruma 1360."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0370",
+    "familia": "desarrollo_pareja_22",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 50,
+        "fin": 88,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 129,
+        "fin": 152,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el correo de contacto contacto-desarrollo-00370@example.test; también consta el domicilio particular Calle de la Lluvia 1370."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0380",
+    "familia": "desarrollo_pareja_23",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 61,
+        "fin": 99,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 126,
+        "fin": 143,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el correo de contacto contacto-desarrollo-00380@example.test y el domicilio particular Pasaje Bruma 1380."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0390",
+    "familia": "desarrollo_pareja_24",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 57,
+        "fin": 95,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 129,
+        "fin": 145,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el correo de contacto contacto-desarrollo-00390@example.test y además el diagnóstico de salud insomnio crónico."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0400",
+    "familia": "desarrollo_pareja_25",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 50,
+        "fin": 88,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 129,
+        "fin": 133,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el correo de contacto contacto-desarrollo-00400@example.test; también consta el diagnóstico de salud asma."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0410",
+    "familia": "desarrollo_pareja_26",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 61,
+        "fin": 99,
+        "categoria": "correo"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 126,
+        "fin": 142,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el correo de contacto contacto-desarrollo-00410@example.test y el diagnóstico de salud insomnio crónico."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0420",
+    "familia": "desarrollo_pareja_27",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 71,
+        "categoria": "telefono"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 100,
+        "fin": 116,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el teléfono de contacto +56900000420 y además la persona titular Amalia Henríquez."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0430",
+    "familia": "desarrollo_pareja_28",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 52,
+        "fin": 64,
+        "categoria": "telefono"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 100,
+        "fin": 118,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el teléfono de contacto +56900000430; también consta la persona titular Josefina Henríquez."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0440",
+    "familia": "desarrollo_pareja_29",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 63,
+        "fin": 75,
+        "categoria": "telefono"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 97,
+        "fin": 115,
+        "categoria": "persona"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el teléfono de contacto +56900000440 y la persona titular Consuelo Henríquez."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0450",
+    "familia": "desarrollo_pareja_30",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 71,
+        "categoria": "telefono"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 105,
+        "fin": 128,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el teléfono de contacto +56900000450 y además el domicilio particular Calle de la Lluvia 1450."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0460",
+    "familia": "desarrollo_pareja_31",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 52,
+        "fin": 64,
+        "categoria": "telefono"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 105,
+        "fin": 122,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el teléfono de contacto +56900000460; también consta el domicilio particular Pasaje Bruma 1460."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0470",
+    "familia": "desarrollo_pareja_32",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 63,
+        "fin": 75,
+        "categoria": "telefono"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 102,
+        "fin": 125,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el teléfono de contacto +56900000470 y el domicilio particular Calle de la Lluvia 1470."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0480",
+    "familia": "desarrollo_pareja_33",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 71,
+        "categoria": "telefono"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 105,
+        "fin": 109,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el teléfono de contacto +56900000480 y además el diagnóstico de salud asma."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0490",
+    "familia": "desarrollo_pareja_34",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 52,
+        "fin": 64,
+        "categoria": "telefono"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 105,
+        "fin": 121,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el teléfono de contacto +56900000490; también consta el diagnóstico de salud insomnio crónico."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0500",
+    "familia": "desarrollo_pareja_35",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 63,
+        "fin": 75,
+        "categoria": "telefono"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 102,
+        "fin": 106,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el teléfono de contacto +56900000500 y el diagnóstico de salud asma."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0510",
+    "familia": "desarrollo_pareja_36",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 54,
+        "fin": 70,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 104,
+        "fin": 127,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra la persona titular Violeta Ibacache y además el domicilio particular Calle de la Lluvia 1510."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0520",
+    "familia": "desarrollo_pareja_37",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 47,
+        "fin": 63,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 104,
+        "fin": 121,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan la persona titular Celeste Ibacache; también consta el domicilio particular Pasaje Bruma 1520."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0530",
+    "familia": "desarrollo_pareja_38",
+    "split": "desarrollo",
+    "accion": "seudonimizar",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 58,
+        "fin": 72,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 99,
+        "fin": 122,
+        "categoria": "direccion"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera la persona titular Clara Ibacache y el domicilio particular Calle de la Lluvia 1530."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0540",
+    "familia": "desarrollo_pareja_39",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 54,
+        "fin": 69,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 103,
+        "fin": 107,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra la persona titular Amalia Jorquera y además el diagnóstico de salud asma."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0550",
+    "familia": "desarrollo_pareja_40",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 47,
+        "fin": 64,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 105,
+        "fin": 121,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan la persona titular Josefina Jorquera; también consta el diagnóstico de salud insomnio crónico."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0560",
+    "familia": "desarrollo_pareja_41",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 58,
+        "fin": 75,
+        "categoria": "persona"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 102,
+        "fin": 106,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera la persona titular Consuelo Jorquera y el diagnóstico de salud asma."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0570",
+    "familia": "desarrollo_pareja_42",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 59,
+        "fin": 82,
+        "categoria": "direccion"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 116,
+        "fin": 132,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Para preparar el trámite, registra el domicilio particular Calle de la Lluvia 1570 y además el diagnóstico de salud insomnio crónico."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0580",
+    "familia": "desarrollo_pareja_43",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 52,
+        "fin": 69,
+        "categoria": "direccion"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 110,
+        "fin": 114,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "En los antecedentes constan el domicilio particular Pasaje Bruma 1580; también consta el diagnóstico de salud asma."
+      }
+    ]
+  },
+  {
+    "id": "desarrollo_v2_0590",
+    "familia": "desarrollo_pareja_44",
+    "split": "desarrollo",
+    "accion": "bloquear",
+    "hallazgos": [
+      {
+        "mensaje": 0,
+        "inicio": 63,
+        "fin": 86,
+        "categoria": "direccion"
+      },
+      {
+        "mensaje": 0,
+        "inicio": 113,
+        "fin": 129,
+        "categoria": "salud"
+      }
+    ],
+    "mensajes": [
+      {
+        "role": "user",
+        "content": "Resume estos antecedentes: ; considera el domicilio particular Calle de la Lluvia 1590 y el diagnóstico de salud insomnio crónico."
+      }
+    ]
+  }
+]

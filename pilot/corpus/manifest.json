@@ -4,7 +4,7 @@
     {
       "id": "ley19628",
       "url": "https://www.bcn.cl/leychile/servicios/Consulta/obtxml?opt=7&idNorma=141599",
-      "fecha_descarga": "2026-11-14",
+      "fecha_descarga": "2026-11-16",
       "version_xml": "2022-11-10",
       "estado": "texto_base",
       "sha256": "4b4a6d8510169104b01c5f56a77c3785d3af44d6b30a5c49116663ccedd0158b",
@@ -20,7 +20,7 @@
     {
       "id": "ley21719",
       "url": "https://www.bcn.cl/leychile/servicios/Consulta/obtxml?opt=7&idNorma=1209272",
-      "fecha_descarga": "2026-11-14",
+      "fecha_descarga": "2026-11-16",
       "version_xml": "2026-02-05",
       "estado": "reforma_con_vigencia_diferida",
       "sha256": "4b60e4c81b043b7f74f744c711ea9a382be2f38db6732ab6b8a0728a5c64480c",
