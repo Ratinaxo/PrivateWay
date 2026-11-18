@@ -12,6 +12,7 @@ import re
 import uuid
 
 from cryptography.fernet import Fernet, InvalidToken
+from .pipeline import PATRON_MARCADOR, aplicar_correspondencias
 
 
 class HistorialNoDisponible(Exception):
@@ -95,6 +96,13 @@ class ConversacionesPostgres:
                         updated_at BIGINT NOT NULL, PRIMARY KEY(owner, id)
                     )""")
                     conn.execute("CREATE INDEX IF NOT EXISTS privateway_conversations_recent ON privateway_conversations(owner, updated_at DESC)")
+                    conn.execute("""CREATE TABLE IF NOT EXISTS privateway_markers (
+                        owner UUID NOT NULL, chat_id UUID NOT NULL, marker TEXT NOT NULL,
+                        content BYTEA NOT NULL,
+                        expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '24 hours'),
+                        PRIMARY KEY(owner, chat_id, marker),
+                        FOREIGN KEY(owner, chat_id) REFERENCES privateway_conversations(owner,id) ON DELETE CASCADE
+                    )""")
             try:
                 await asyncio.to_thread(crear)
                 self._ready = True
@@ -136,3 +144,62 @@ class ConversacionesPostgres:
             with self._conn() as conn:
                 conn.execute("DELETE FROM privateway_conversations WHERE owner = %s AND id = %s", (owner, chat_id))
         await asyncio.to_thread(eliminar_db)
+
+    async def guardar_marcadores(self, owner: str, chat_id: str, valores: dict[str, str]) -> None:
+        await self._preparar()
+        owner, chat_id = str(uuid.UUID(owner)), str(uuid.UUID(chat_id))
+
+        def guardar():
+            with self._conn() as conn:
+                existe = conn.execute(
+                    "SELECT 1 FROM privateway_conversations WHERE owner=%s AND id=%s FOR KEY SHARE",
+                    (owner, chat_id),
+                ).fetchone()
+                if existe is None:
+                    raise HistorialNoDisponible("conversación no disponible")
+                conn.execute(
+                    "DELETE FROM privateway_markers WHERE owner=%s AND chat_id=%s AND expires_at <= now()",
+                    (owner, chat_id),
+                )
+                for marcador, valor in valores.items():
+                    contenido = self.crypto.encrypt(json.dumps([owner, chat_id, marcador, valor]).encode())
+                    conn.execute(
+                        "INSERT INTO privateway_markers(owner,chat_id,marker,content) VALUES (%s,%s,%s,%s)",
+                        (owner, chat_id, marcador, contenido),
+                    )
+
+        await asyncio.to_thread(guardar)
+
+    async def pertenece(self, owner: str, chat_id: str) -> bool:
+        await self._preparar()
+
+        def verificar():
+            with self._conn() as conn:
+                return conn.execute(
+                    "SELECT 1 FROM privateway_conversations WHERE owner=%s AND id=%s", (owner, chat_id),
+                ).fetchone() is not None
+
+        return await asyncio.to_thread(verificar)
+
+    async def restituir(self, owner: str, chat_id: str, texto: str) -> str:
+        marcadores = list(set(PATRON_MARCADOR.findall(texto)))
+        if not marcadores:
+            return texto
+        owner, chat_id = str(uuid.UUID(owner)), str(uuid.UUID(chat_id))
+
+        def leer():
+            with self._conn() as conn:
+                filas = conn.execute(
+                    """SELECT marker, content FROM privateway_markers
+                       WHERE owner=%s AND chat_id=%s AND marker=ANY(%s) AND expires_at > now()""",
+                    (owner, chat_id, marcadores),
+                ).fetchall()
+            valores = {}
+            for marcador, cifrado in filas:
+                sujeto, conversacion, etiqueta, valor = json.loads(self.crypto.decrypt(bytes(cifrado)))
+                if (sujeto, conversacion, etiqueta) != (owner, chat_id, marcador) or not isinstance(valor, str):
+                    raise HistorialNoDisponible("correspondencia inválida")
+                valores[marcador] = valor
+            return aplicar_correspondencias(texto, valores)
+
+        return await asyncio.to_thread(leer)

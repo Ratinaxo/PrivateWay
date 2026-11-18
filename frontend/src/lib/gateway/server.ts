@@ -9,10 +9,14 @@ export class GatewayBridgeError extends Error {
   }
 }
 
-async function requestGateway(path: "/api/v1/models" | "/api/v1/secure-chat", body?: GatewayChatRequest, actor?: {id: string; name: string}): Promise<unknown> {
+type GatewayActor = {id: string; name: string; conversationId?: string}
+
+async function requestGateway(path: "/api/v1/models" | "/api/v1/secure-chat", body?: GatewayChatRequest, actor?: GatewayActor): Promise<unknown> {
   if (!INTERNAL_BASE || !SERVICE_TOKEN) {
     throw new GatewayBridgeError("GATEWAY_NO_CONFIGURADO", 503)
   }
+  const historyToken = process.env.GATEWAY_HISTORY_TOKEN
+  if (actor?.conversationId && !historyToken) throw new GatewayBridgeError("HISTORIAL_NO_CONFIGURADO", 503)
   let url: URL
   try {
     const base = new URL(INTERNAL_BASE)
@@ -33,11 +37,13 @@ async function requestGateway(path: "/api/v1/models" | "/api/v1/secure-chat", bo
         Authorization: `Bearer ${SERVICE_TOKEN}`,
         ...(body ? { "Content-Type": "application/json" } : {}),
         ...(actor ? {"X-PrivateWay-User-Id": actor.id, "X-PrivateWay-User-Name": encodeURIComponent(actor.name.slice(0, 100))} : {}),
+        ...(actor?.conversationId ? {"X-PrivateWay-Conversation-Id": actor.conversationId,
+          "X-PrivateWay-History-Auth": `Bearer ${historyToken}`} : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store",
       redirect: "manual",
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(body ? 185_000 : 15_000),
     })
   } catch {
     throw new GatewayBridgeError("GATEWAY_INACCESIBLE", 502)
@@ -91,7 +97,7 @@ export async function getGatewayCatalog(): Promise<GatewayCatalog> {
   return data as GatewayCatalog
 }
 
-export async function sendProtectedChat(body: GatewayChatRequest, actor?: {id: string; name: string}): Promise<GatewayChatResponse> {
+export async function sendProtectedChat(body: GatewayChatRequest, actor?: GatewayActor): Promise<GatewayChatResponse> {
   const data = await requestGateway("/api/v1/secure-chat", body, actor)
   if (!data || typeof data !== "object" || !("respuesta" in data) || !("decision" in data)) {
     throw new GatewayBridgeError("GATEWAY_RESPUESTA_INVALIDA", 502)

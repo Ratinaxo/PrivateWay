@@ -40,7 +40,8 @@ def recursos(carpeta):
 
 
 def cargar_resultados(carpeta):
-    filas = [json.loads(p.read_text(encoding="utf-8")) for p in carpeta.glob("*-dev-c*.json")]
+    archivos = [*carpeta.glob("*-dev-c*.json"), *carpeta.glob("*-val-c*.json")]
+    filas = [json.loads(p.read_text(encoding="utf-8")) for p in archivos]
     esperadas = {("deteccion",m,c) for m in ("regex","slm","hibrido") for c in (1,5,10)}
     esperadas |= {("flujo","hibrido",c) for c in (1,5,10)}
     if len(filas) != 12 or {(f["nivel"],f["modo"],f["concurrencia"]) for f in filas} != esperadas:
@@ -49,6 +50,8 @@ def cargar_resultados(carpeta):
                   "revision_modelo","contexto_tokens","dataset_sha256","protocolo"):
         if len({f[clave] for f in filas}) != 1:
             raise ValueError(f"Resultados no comparables: {clave}")
+    if len({f.get("split", "desarrollo") for f in filas}) != 1:
+        raise ValueError("Se mezclaron desarrollo y validación")
     if len({f["versiones"]["indice"] for f in filas}) != 1:
         raise ValueError("Se mezclaron indices de corpus")
     ids = [{s["id"] for s in f["muestras"]} for f in filas]
@@ -67,12 +70,15 @@ def smoke_correcto(s):
 
 def generar(carpeta, salida, fecha, junit=None):
     filas = cargar_resultados(carpeta)
-    smoke = json.loads((carpeta/"smoke.json").read_text(encoding="utf-8"))
+    medicion = carpeta.parent if carpeta.name.startswith("repeticion-") else carpeta
+    smoke = json.loads((medicion/"smoke.json").read_text(encoding="utf-8"))
     flujos = [f for f in filas if f["nivel"] == "flujo"]
     aprobada = all(smoke_correcto(s) for s in smoke) and all(
         f["errores"] == 0 and f["aciertos_accion"] == f["n"]
-        and not any(s["apariciones_expuestas"] for s in f["muestras"]) for f in flujos)
+        and not any(s["apariciones_expuestas"] or s.get("apariciones_parciales")
+                    for s in f["muestras"]) for f in flujos)
     base = filas[0]
+    split = base.get("split", "desarrollo")
     texto = [f"# Repetición del piloto — {fecha}", "",
         "**Pruebas de flujo aprobadas en este lote.**" if aprobada else "**Hay fallos pendientes en esta ejecución.**", "",
         "## Cambios y alcance", "",
@@ -86,8 +92,8 @@ def generar(carpeta, salida, fecha, junit=None):
         "vLLM 0.10.2, AWQ-Marlin, temperatura 0, salida máxima 1024 por llamada y una generación simultánea. "
         "E5-large en CPU; pgvector exacto top-4.", "",
         f'Prefill: {base.get("prefill_tokens",512)} tokens por lote; presupuesto GPU {base.get("gpu_memory",.75):.0%}.', "",
-        f'Se repitieron doce configuraciones con {base["n"]} escenarios de desarrollo cada una. '
-        "Los 60 casos de validación permanecen reservados. Detección ejecuta solo extracción; "
+        f'Se ejecutaron doce configuraciones con {base["n"]} escenarios de {split} cada una. '
+        "Detección ejecuta solo extracción; "
         "flujo incluye extracción y juicio, API ASGI, auditoría cifrada y proveedor espía simulado. "
         "La latencia ASGI excluye TCP/proxy; el smoke sí incluye el acceso HTTP local.", ""]
     if junit:
@@ -111,17 +117,31 @@ def generar(carpeta, salida, fecha, junit=None):
         texto.append(f'| {f["nivel"]}/{f["modo"]} | {f["concurrencia"]} | {f["n"]} | {f["errores"]} | {fmt} | '
             f'{f["p50_ms"]/1000:.3f} | {f["p95_ms"]/1000:.3f} | '
             f'{f["transmitidas"] if f["nivel"]=="flujo" else "—"} | {f["aciertos_accion"] if f["nivel"]=="flujo" else "—"} |')
+    if any(f.get("latencia_etapas") for f in flujos):
+        texto += ["", "## Latencia por etapa del flujo", "",
+                  "| Concurrencia | Etapa | Observaciones | p50 s | p95 s |",
+                  "|---:|---|---:|---:|---:|"]
+        for f in flujos:
+            for etapa, valores in sorted(f.get("latencia_etapas", {}).items()):
+                texto.append(f'| {f["concurrencia"]} | {etapa} | {valores["n"]} | '
+                             f'{valores["p50_ms"]/1000:.3f} | {valores["p95_ms"]/1000:.3f} |')
+        texto += ["", "Rendimiento del flujo por concurrencia: " +
+                  ", ".join(f'{f["concurrencia"]}: {f["throughput"]:.2f} solicitudes/s' for f in flujos) + "."]
     texto += ["", "Los errores cuentan como omisiones; las categorías y spans deben coincidir exactamente. "
         "Detección no exige un juicio de tratamiento y nunca transmite consultas.", "", "## Recuperación, exposición y fallos", ""]
     for f in flujos:
         enviados = [s for s in f["muestras"] if s["transmitida"]]
         anotadas = sum(s["apariciones_anotadas"] for s in enviados)
         expuestas = sum(s["apariciones_expuestas"] or 0 for s in enviados)
+        parciales = sum(s.get("apariciones_parciales") or 0 for s in enviados)
+        parcial = f", {parciales}/{anotadas} parcialmente visibles" if any(
+            "apariciones_parciales" in s for s in f["muestras"]
+        ) else ""
         texto.append(f'- Concurrencia {f["concurrencia"]}: {f["transmitidas"]} envíos, {f["bloqueos"]} bloqueos del SLM, '
-            f'{f["errores"]} fallos técnicos; {expuestas}/{anotadas} apariciones anotadas visibles en lo enviado.')
-    texto += ["", f'Recall@4: {base["recall4"]:.3f}, en doce preguntas jurídicas de desarrollo. '
-        "No acredita pertinencia de las citas en consultas empresariales ni corrección jurídica de las explicaciones. "
-        "La exposición es coincidencia literal; no mide reidentificación ni inferencias.", ""]
+            f'{f["errores"]} fallos técnicos; {expuestas}/{anotadas} apariciones literales{parcial}.')
+    texto += ["", f'Recall@4: {base["recall4"]:.3f}, en doce preguntas jurídicas de {split}. '
+        "Esta métrica mide recuperación documental. La pertinencia de citas y fundamentos requiere revisión aparte. "
+        "La comprobación de exposición se limita a las apariciones anotadas.", ""]
     fallos = collections.Counter()
     for p in carpeta.glob("flujo-*.events.jsonl"):
         for l in p.read_text(encoding="utf-8").splitlines():
@@ -130,7 +150,7 @@ def generar(carpeta, salida, fecha, junit=None):
                 fallos[evento["motivo"]] += 1
     texto += ["Códigos técnicos (incluido calentamiento): " + (
         ", ".join(f"`{k}`: {v}" for k,v in sorted(fallos.items())) or "ninguno registrado") + ".", "",
-        "## Recursos observados", ""] + recursos(carpeta) + ["", "## Reproducibilidad y límites", "",
+        "## Recursos observados", ""] + recursos(medicion) + ["", "## Reproducibilidad y límites", "",
         f'- Corpus: `{base["versiones"]["indice"]}`.',
         f'- Instrucciones SHA-256: `{base["instrucciones_sha256"]}`.',
         f'- Esquemas de inferencia SHA-256: `{base["esquemas_wire_sha256"]}`.',
@@ -139,8 +159,14 @@ def generar(carpeta, salida, fecha, junit=None):
         "- Cada repetición usa una carpeta independiente; no se acumulan eventos de ejecuciones anteriores.",
         "- Se conservaron el informe del 14 de noviembre, el modelo anterior y sus revisiones.",
         "- Una pasada por configuración con datos sintéticos no demuestra generalización ni resistencia a toda inyección.",
-        "- La validación final, la revisión humana de anotaciones, restitución y proveedor real siguen pendientes.", ""]
+        "- La utilidad con proveedor externo y la restitución requieren sus propias pruebas.", ""]
     salida.parent.mkdir(parents=True,exist_ok=True)
+    archivo_run = medicion / "run.json"
+    if archivo_run.exists():
+        corrida = json.loads(archivo_run.read_text(encoding="utf-8"))
+        if corrida.get("revision_codigo"):
+            estado = "limpio" if corrida.get("arbol_limpio") else "con cambios locales al iniciar"
+            texto += [f'- Commit base: `{corrida["revision_codigo"]}`. Árbol de trabajo {estado}.', ""]
     salida.write_text("\n".join(texto),encoding="utf-8")
     return aprobada
 

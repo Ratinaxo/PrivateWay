@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import secrets
 import time
 import httpx
 import re
@@ -11,9 +12,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from backend.deteccion.hallazgo import Categoria, Hallazgo, Procedencia
 from .contracts import Accion, Mensaje
-from .pipeline import AnalisisNoDisponible, DecisionValidada
+from .pipeline import AnalisisNoDisponible, DecisionValidada, Restitucion
 from .regex_pipeline import PipelineRegex, seudonimizar_texto
-from .slm_protocol import DECISION, EXTRACCION, FUNDAMENTO, NOMBRES, VERSION
+from .slm_protocol import ASOCIACION_SALUD, DECISION, EXTRACCION, FUNDAMENTO, NOMBRES, VERSION
 
 
 class EntidadSLM(BaseModel):
@@ -40,7 +41,7 @@ class JuicioSLM(DeteccionSLM):
     accion: Literal["permitir", "seudonimizar", "bloquear"]
 
 
-INSTRUCCION = EXTRACCION + "\n" + NOMBRES + "\n" + DECISION + "\n" + FUNDAMENTO
+INSTRUCCION = "\n".join((EXTRACCION, NOMBRES, ASOCIACION_SALUD, DECISION, FUNDAMENTO))
 
 
 class PipelineHibrido(PipelineRegex):
@@ -50,6 +51,13 @@ class PipelineHibrido(PipelineRegex):
         super().__init__(detector=detector)
         self.recuperador, self.slm = recuperador, slm
         self.usar_regex = usar_regex
+
+    async def procesar_respuesta(self, solicitud, decision, respuesta, contexto):
+        respuesta = await super().procesar_respuesta(solicitud, decision, respuesta, contexto)
+        if decision.restitucion is None:
+            return respuesta
+        contenido = decision.restitucion.aplicar(respuesta.content, contexto)
+        return respuesta.model_copy(update={"content": contenido})
 
     async def comprobar(self):
         try:
@@ -165,7 +173,7 @@ class PipelineHibrido(PipelineRegex):
             if any("[PW_" in m.content for m in solicitud.messages):
                 raise ValueError("colision marcador")
             for m, hs in zip(solicitud.messages, por_mensaje):
-                saneado = seudonimizar_texto(m.content, hs, etiquetas)
+                saneado = seudonimizar_texto(m.content, hs, etiquetas, crear_etiqueta=_marcador)
                 if self._detectar(saneado):
                     raise ValueError("regex residual")
                 nuevos.append(Mensaje(role=m.role, content=saneado))
@@ -179,7 +187,16 @@ class PipelineHibrido(PipelineRegex):
                      versiones=versiones)
         return DecisionValidada(esperada, "HIBRIDO_" + esperada.name,
                                 nuevos if esperada != Accion.BLOQUEAR else None,
-                                True, esperada == Accion.SEUDONIMIZAR, traza)
+                                True, esperada == Accion.SEUDONIMIZAR, traza,
+                                restitucion=Restitucion(contexto, {
+                                    marcador: valor for (_, valor), marcador in etiquetas.items()
+                                }) if etiquetas else None)
+
+
+def _marcador(categoria: Categoria) -> str:
+    # Evita secuencias de dígitos que REGEX podría interpretar como identificadores.
+    sufijo = secrets.token_hex(16).translate(str.maketrans("0123456789abcdef", "abcdefghijklmnop"))
+    return f"[PW_{categoria.name}_{sufijo}]"
 
 
 def desde_entorno():

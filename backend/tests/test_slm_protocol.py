@@ -105,3 +105,27 @@ def test_revision_de_nombres_omitidos_sigue_exigiendo_literalidad():
     c=Cliente()
     with pytest.raises(ValueError,match="entidad no literal"):
         asyncio.run(extraer(c,dict(mensajes=[dict(indice=0,texto="Texto sin nombres")],regex=[])))
+
+
+@pytest.mark.parametrize("respuesta, confirmada", [
+    (["s1"], True), ([], False), (["inventado"], None), (["s1", "s1"], None),
+])
+def test_asociacion_de_salud_solo_confirma_ids_anclados(respuesta, confirmada):
+    class Cliente:
+        async def juzgar(self, _, datos, esquema):
+            if "diagnosticos" not in datos:
+                return wire([
+                    entidad("Ana Torres"),
+                    {**entidad("diabetes", categoria="salud"), "persona_asociada": False},
+                ])
+            assert datos["diagnosticos"] == [{"id": "s1", "mensaje": 0, "texto": "diabetes"}]
+            assert esquema["properties"]["asociados"]["items"]["enum"] == ["s1"]
+            return json.dumps({"asociados": respuesta})
+
+    entrada = dict(mensajes=[dict(indice=0, texto="Ana Torres tiene diabetes.")], regex=[])
+    if confirmada is None:
+        with pytest.raises(ValueError, match="asociacion de salud invalida"):
+            asyncio.run(extraer(Cliente(), entrada))
+    else:
+        hallazgos = asyncio.run(extraer(Cliente(), entrada))
+        assert hallazgos[1]["persona_asociada"] is confirmada

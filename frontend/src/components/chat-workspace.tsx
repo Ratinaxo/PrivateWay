@@ -306,8 +306,22 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
     if (activeChat) {
       setChats((previous) => previous.map((chat) => chat.id === chatId ? { ...chat, updatedAt: now, messages: [...chat.messages, input].slice(-MAX_STORED_MESSAGES) } : chat))
     } else {
-      setChats((previous) => [{ id: chatId, title: content.length > 46 ? `${content.slice(0, 46)}…` : content,
-        providerId: currentProvider, modelId: currentModel, createdAt: now, updatedAt: now, messages: [input] }, ...previous])
+      const chat: Conversation = { id: chatId, title: content.length > 46 ? `${content.slice(0, 46)}…` : content,
+        providerId: currentProvider, modelId: currentModel, createdAt: now, updatedAt: now, messages: [input] }
+      const payload = JSON.stringify(chat)
+      try {
+        const saved = await fetch(`/api/privateway/conversations/${encodeURIComponent(chatId)}`, {
+          method: "PUT", headers: {"Content-Type": "application/json"}, body: payload, cache: "no-store",
+        })
+        if (!saved.ok) throw new Error("HISTORIAL_NO_DISPONIBLE")
+      } catch {
+        setHistoryError("No se pudo crear la conversación. Comprueba la conexión con el historial.")
+        sendingRef.current = false
+        setSending(false)
+        return
+      }
+      persistedRef.current.set(chatId, payload)
+      setChats((previous) => [chat, ...previous])
       setActiveId(chatId)
     }
     setDraft("")
@@ -321,6 +335,7 @@ export function ChatWorkspace({ user }: { user: { name: string; email: string | 
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
         body: JSON.stringify({
+          conversationId: chatId,
           model: currentModel,
           messages: [...contextWindow.map((m) => ({ role: m.role, content: m.content })), { role: "user", content }],
           stream: false,

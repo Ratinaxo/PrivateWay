@@ -10,10 +10,11 @@ from pathlib import Path
 import time
 
 from .contracts import SolicitudChat, Mensaje
+from .exposure import visibilidad
 from .pipeline import ContextoEjecucion
 from .hybrid import desde_entorno
 from .hybrid import INSTRUCCION, JuicioSLM
-from .slm_protocol import VERSION, ExtraccionPorCategoria, Nombres, AccionPropuesta, Fundamento
+from .slm_protocol import VERSION, ExtraccionPorCategoria, Nombres, AsociacionSalud, AccionPropuesta, Fundamento
 
 
 def metricas(tp, fp, fn):
@@ -76,19 +77,25 @@ async def evaluar(args):
                 for i,n in enumerate((len(v & pr), len(pr-v), len(v-pr))):
                     categorias[cat][i] += n
             transmitida = enviados is not None
-            expuestas = None
+            expuestas = parciales = None
             if transmitida:
-                # Proveedor espía local: texto exacto que habría recibido el simulador.
-                expuestas = sum(solicitud.messages[m].content[a:b] in enviados[m].content
-                                for m,a,b,_ in verdad)
+                visibles = [visibilidad(solicitud.messages[m].content[a:b], enviados[m].content, cat)
+                            for m,a,b,cat in verdad]
+                expuestas = visibles.count("literal")
+                parciales = visibles.count("parcial")
             muestras.append(dict(id=caso["id"], error=error, latencia_ms=latencia,
                                   tp=len(verdad & pred),fp=len(pred-verdad),fn=len(verdad-pred),
                                   categorias_omitidas=sorted({h[3] for h in verdad-pred}),
                                   accion=d.accion.value if d and args.nivel == "flujo" else None,
                                   esperada=caso["accion"] if args.nivel == "flujo" else None,
                                   transmitida=transmitida, apariciones_expuestas=expuestas,
+                                  apariciones_parciales=parciales,
+                                  transmision=("confirmada" if transmitida else
+                                               "bloqueada" if d and d.accion.value == "bloquear" and banco else
+                                               "no_realizada" if banco else "no_aplica"),
                                   apariciones_anotadas=len(verdad),
                                   recuperados=(d.traza.get("recuperados") or [f["id"] for f in d.traza.get("fragmentos",[])]) if d else [],
+                                  citados=d.traza.get("referencias", []) if d else [],
                                   tiempos=d.traza.get("tiempos", {}) if d else {}))
     await uno(datos[0], guardar=False)  # Calentamiento, fuera de métricas.
     inicio = time.perf_counter()
@@ -101,8 +108,13 @@ async def evaluar(args):
         if c["split"] != args.split:
             continue
         fs = await p.recuperador.buscar([Mensaje(role="user", content=c["consulta"])], [])
-        rag.append(dict(id=c["id"], acierto=any(f["id"].startswith(c["esperado"]+"_") for f in fs)))
+        rag.append(dict(id=c["id"], esperado=c["esperado"], recuperados=[f["id"] for f in fs],
+                        acierto=any(f["id"].startswith(c["esperado"]+"_") for f in fs)))
     xs = [s["latencia_ms"] for s in muestras]
+    etapas = collections.defaultdict(list)
+    for muestra in muestras:
+        for etapa, tiempo in muestra["tiempos"].items():
+            etapas[etapa].append(tiempo)
     resumen = dict(modo=args.modo, nivel=args.nivel, split=args.split, concurrencia=args.concurrencia,
                    versiones=await p.recuperador.versiones(), modelo=p.slm.modelo,
                    revision_modelo=p.slm.revision,
@@ -114,7 +126,7 @@ async def evaluar(args):
                    gpu_memory=float(os.environ.get("PRIVATEWAY_GPU_MEMORY","0.75")),
                    instrucciones_sha256=hashlib.sha256(INSTRUCCION.encode()).hexdigest(),
                    esquema_sha256=hashlib.sha256(json.dumps(JuicioSLM.model_json_schema(),sort_keys=True).encode()).hexdigest(),
-                   esquemas_wire_sha256=hashlib.sha256(json.dumps([ExtraccionPorCategoria.model_json_schema(),Nombres.model_json_schema(),AccionPropuesta.model_json_schema(),Fundamento.model_json_schema()],sort_keys=True).encode()).hexdigest(),
+                   esquemas_wire_sha256=hashlib.sha256(json.dumps([ExtraccionPorCategoria.model_json_schema(), Nombres.model_json_schema(), AsociacionSalud.model_json_schema(), AccionPropuesta.model_json_schema(), Fundamento.model_json_schema()], sort_keys=True).encode()).hexdigest(),
                    dataset_sha256=hashlib.sha256((args.datos/f"{args.split}.json").read_bytes()).hexdigest(),
                    n=len(muestras), errores=sum(bool(s["error"]) for s in muestras),
                    bloqueos=sum(s["accion"] == "bloquear" for s in muestras),
@@ -125,9 +137,12 @@ async def evaluar(args):
                                     if args.nivel == "flujo" else None,
                    recall4=sum(c["acierto"] for c in rag)/len(rag) if rag else None,
                    p50_ms=percentil(xs,.5), p95_ms=percentil(xs,.95), p99_ms=percentil(xs,.99),
+                   latencia_etapas={etapa: dict(n=len(valores), p50_ms=percentil(valores, .5),
+                                                p95_ms=percentil(valores, .95))
+                                    for etapa, valores in etapas.items()},
                    throughput=len(muestras)/duracion, muestras=muestras, recuperacion=rag,
                    limitaciones=["Corpus sintético preliminar; anotación requiere revisión humana.",
-                                 "Exposición medida por valores literales; no evalúa reidentificación.",
+                                 "Visibilidad parcial heurística; requiere revisión de coincidencias y no evalúa reidentificación.",
                                  "Fallo técnico cuenta como omisión en detección, no como bloqueo."])
     args.salida.parent.mkdir(parents=True, exist_ok=True)
     args.salida.write_text(json.dumps(resumen, indent=2, ensure_ascii=False), encoding="utf-8")

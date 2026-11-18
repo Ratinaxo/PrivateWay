@@ -22,16 +22,29 @@ let configured = true;
 let authenticated = true;
 let oidcId = '00000000-0000-4000-8000-000000000001';
 let calls = 0;
+let forwarded;
+let owned = true;
+let checked;
+class HistoryError extends Error {
+  constructor(status, code) {super(code); this.code=code; this.status=status;}
+}
 const response = {respuesta: {choices: [{message: {content: 'Respuesta sintética'}}]}, decision: {accion: 'permitir', codigo_motivo: 'TEST', evento: 'evt_00000000000000000000000000000000', mensaje_actual_seudonimizado: false, historial_seudonimizado: false}};
 const route = importTs(path.join(__dirname, '../src/app/api/privateway/chat/route.ts'), {
   'next/server': {NextResponse: {json: (body, options = {}) => ({status: options.status ?? 200, body})}},
   '@/lib/auth/config': {isAuthConfigured: () => configured},
   '@/lib/auth/session': {currentSession: async () => authenticated ? {user: {id: oidcId}} : null},
+  '@/lib/gateway/conversations': {
+    HistoryError,
+    historyGateway: async (...args) => {
+      checked = args;
+      if (!owned) throw new HistoryError(404, 'CONVERSACION_NO_DISPONIBLE');
+    },
+  },
   '@/lib/gateway/server': {
     GatewayBridgeError: class GatewayBridgeError extends Error {
       constructor(code, status) {super(code); this.code=code; this.status=status;}
     },
-    sendProtectedChat: async () => {calls++; return response;},
+    sendProtectedChat: async (body, actor) => {calls++; forwarded = {body, actor}; return response;},
   },
 });
 function request(body, headers = {}) {
@@ -81,6 +94,27 @@ async function check() {
   assert.deepEqual(result.body, response);
   assert.equal(calls, 1);
 
-  console.log('BFF chat contract: 7 pruebas superadas');
+  result = await route.POST(request({...valid, conversationId: 'invalida'}));
+  assert.equal(result.status, 422);
+  assert.equal(calls, 1);
+
+  const conversationId = '00000000-0000-4000-8000-000000000002';
+  result = await route.POST(request({...valid, conversationId, owner: 'falso'}));
+  assert.equal(result.status, 422);
+  assert.equal(calls, 1);
+
+  result = await route.POST(request({...valid, conversationId}));
+  assert.equal(result.status, 200);
+  assert.deepEqual(forwarded.body, valid);
+  assert.equal(forwarded.actor.id, oidcId);
+  assert.equal(forwarded.actor.conversationId, conversationId);
+  assert.deepEqual(checked, ['HEAD', oidcId, conversationId]);
+
+  owned = false;
+  result = await route.POST(request({...valid, conversationId}));
+  assert.equal(result.status, 404);
+  assert.equal(calls, 2);
+
+  console.log('BFF chat contract: 11 pruebas superadas');
 }
 check().catch((err) => {console.error(err); process.exitCode = 1;});

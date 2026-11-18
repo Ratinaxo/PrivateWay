@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
 from datetime import datetime, timezone
 import os
 import re
@@ -12,7 +13,7 @@ from urllib.parse import unquote
 
 from fastapi import FastAPI, Header, Request, Query
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from .audit import AuditoriaArchivo, AuditoriaNoConfigurada, AuditoriaNoDisponible
 from .audit_content import ContenidoAuditoria
@@ -37,6 +38,7 @@ def error(codigo: str, estado: int, evento: str | None = None) -> JSONResponse:
         "PROVEEDOR_NO_DISPONIBLE": "No se pudo completar la operación con el proveedor.",
         "FALLO_POSPROCESAMIENTO": "No se pudo validar o restituir la respuesta de forma segura.",
         "HISTORIAL_NO_DISPONIBLE": "No se pudo acceder a las conversaciones almacenadas.",
+        "CONVERSACION_NO_DISPONIBLE": "La conversación no está disponible.",
     }
     cabeceras = {"X-Gateway-Event-ID": evento} if evento else {}
     return JSONResponse(
@@ -55,7 +57,7 @@ def _token_autorizado(recibido: str, config: Configuracion) -> bool:
     return any(secrets.compare_digest(recibido, token) for token in config.tokens_cliente)
 
 
-def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) -> FastAPI:
+def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None, conversaciones=None) -> FastAPI:
     config = config if config is not None else Configuracion.desde_entorno()
     if auditoria is None:
         ruta_auditoria = os.environ.get("GATEWAY_AUDIT_FILE")
@@ -80,7 +82,8 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
             os.environ.get("GATEWAY_AUDIT_CONTENT_DIR", "/var/lib/privateway/audit/previews"),
             os.environ["GATEWAY_AUDIT_CONTENT_KEY"],
         )
-    conversaciones = ConversacionesPostgres.desde_entorno()
+    if conversaciones is None:
+        conversaciones = ConversacionesPostgres.desde_entorno()
     app = FastAPI(title="PrivateWay Gateway", docs_url=None, redoc_url=None)
 
     def token_interno(authorization: str | None, variable: str) -> bool:
@@ -116,6 +119,22 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
             return JSONResponse(content={"conversations": data}, headers={"Cache-Control": "no-store"})
         except HistorialNoDisponible:
             return error("HISTORIAL_NO_DISPONIBLE", 503)
+
+    @app.head("/api/v1/conversations/{id}")
+    async def verificar_conversacion(id: str, authorization: str | None = Header(default=None),
+                                    x_privateway_user_id: str | None = Header(default=None)):
+        fallo = await historial_disponible(authorization, x_privateway_user_id)
+        if fallo is not None:
+            return fallo
+        if not _uuid(id):
+            return error("SOLICITUD_INVALIDA", 422)
+        try:
+            existe = await conversaciones.pertenece(x_privateway_user_id, id)
+        except Exception:
+            return error("HISTORIAL_NO_DISPONIBLE", 503)
+        if not existe:
+            return error("CONVERSACION_NO_DISPONIBLE", 404)
+        return Response(status_code=204, headers={"Cache-Control": "no-store"})
 
     @app.put("/api/v1/conversations/{id}")
     async def guardar_conversacion(id: str, request: Request, authorization: str | None = Header(default=None),
@@ -216,11 +235,18 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
             return error("AUDITORIA_NO_DISPONIBLE", 503)
 
     async def procesar(cuerpo: SolicitudChat, autorizacion: str | None, extendida: bool,
-                       actor_id: str | None = None, actor_nombre: str | None = None):
+                       actor_id: str | None = None, actor_nombre: str | None = None,
+                       conversacion_id: str | None = None, historial_auth: str | None = None):
         evento = "evt_" + uuid.uuid4().hex
         recibida = _token_recibido(autorizacion)
         if not _token_autorizado(recibida, config):
             return error("NO_AUTORIZADO", 401)
+        if conversacion_id is not None:
+            fallo = await historial_disponible(historial_auth, actor_id)
+            if fallo is not None:
+                return fallo
+            if not _uuid(conversacion_id):
+                return error("SOLICITUD_INVALIDA", 422, evento)
 
         ruta = config.rutas.get(cuerpo.model)
         if ruta is None or ruta.proveedor not in adaptadores:
@@ -232,6 +258,13 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
         )
         try:
             decision = await pipeline.analizar(cuerpo, contexto)
+            if conversacion_id is not None and decision.accion != Accion.BLOQUEAR:
+                valores = decision.restitucion.valores(contexto) if decision.restitucion else {}
+                try:
+                    await conversaciones.guardar_marcadores(actor_id, conversacion_id, valores)
+                except Exception:
+                    raise AnalisisNoDisponible(codigo="HISTORIAL_NO_DISPONIBLE") from None
+                decision = replace(decision, restitucion=None)
         except AnalisisNoDisponible as exc:
             try:
                 await auditoria.registrar({"evento": evento, "fase": "fallo_analisis",
@@ -312,6 +345,8 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
                 return error("AUDITORIA_NO_DISPONIBLE", 503, evento)
             return error("POLITICA_BLOQUEA", 403, evento)
 
+        tiempos = decision.traza.get("tiempos")
+        inicio_proveedor = time.perf_counter()
         try:
             respuesta = await adaptadores[ruta.proveedor].completar(
                 ruta.modelo_externo, decision.mensajes_salida, cuerpo
@@ -333,10 +368,16 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
                 pass
             return error("PROVEEDOR_NO_DISPONIBLE", 502, evento)
 
+        if tiempos is not None:
+            tiempos["proveedor_ms"] = (time.perf_counter() - inicio_proveedor) * 1000
+        inicio_restitucion = time.perf_counter()
         try:
             final = await pipeline.procesar_respuesta(cuerpo, decision, respuesta, contexto)
             if not isinstance(final.content, str):
                 raise AnalisisNoDisponible("restitución no validada")
+            if conversacion_id is not None:
+                texto = await conversaciones.restituir(actor_id, conversacion_id, final.content)
+                final = final.model_copy(update={"content": texto})
         except Exception:
             # Aquí sí se confirmó respuesta del proveedor, pero falló la restitución local.
             try:
@@ -345,6 +386,8 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
                 pass
             return error("FALLO_POSPROCESAMIENTO", 503, evento)
 
+        if tiempos is not None:
+            tiempos["posprocesamiento_ms"] = (time.perf_counter() - inicio_restitucion) * 1000
         try:
             if contenido_auditado is not None:
                 await contenido_auditado.guardar(evento, {
@@ -402,8 +445,12 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
     @app.post("/api/v1/secure-chat")
     async def seguro(cuerpo: SolicitudChat, authorization: str | None = Header(default=None),
                      x_privateway_user_id: str | None = Header(default=None),
-                     x_privateway_user_name: str | None = Header(default=None)):
+                     x_privateway_user_name: str | None = Header(default=None),
+                     x_privateway_conversation_id: str | None = Header(default=None),
+                     x_privateway_history_auth: str | None = Header(default=None)):
         return await procesar(cuerpo, authorization, extendida=True,
-                              actor_id=x_privateway_user_id, actor_nombre=x_privateway_user_name)
+                              actor_id=x_privateway_user_id, actor_nombre=x_privateway_user_name,
+                              conversacion_id=x_privateway_conversation_id,
+                              historial_auth=x_privateway_history_auth)
 
     return app
