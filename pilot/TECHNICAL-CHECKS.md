@@ -5,10 +5,12 @@
 | Restitución acotada al usuario y la conversación | Contrato del BFF y prueba de dos conversaciones en la API con PostgreSQL real y proveedor de eco | Verificado |
 | Cifrado, concurrencia, caducidad y eliminación de correspondencias | `backend.gateway.check_conversation_store` con registros sintéticos | Verificado en PostgreSQL |
 | Detener el envío ante fallo previo y distinguir fallos posteriores | Pruebas del gateway y estados de la auditoría | Verificado con simulador |
-| Canalización en el cliente administrado | Cliente efímero de Docker en red interna alcanzó `/ready` y no pudo establecer conexión directa con la API externa | Verificado en el cliente efímero. Pendiente la sesión con el proveedor real |
-| Utilidad posterior a la restitución | `backend.gateway.evaluate_utility` con Gemini 3.1 Flash-Lite en ambos brazos | Piloto de cinco casos ejecutado, tres pares evaluables |
-| Detección, exposición, rendimiento y recuperación | [Informe de desarrollo v9](REPORT-DESARROLLO-V9.md), JSON por caso y auditoría del simulador | Desarrollo aprobado en las doce configuraciones. Cero exposiciones anotadas en cada corrida de flujo |
-| Validación reservada | Resultado completo con configuración congelada | Pendiente |
+| Canalización en el cliente administrado | Cliente efímero de Docker alcanzó el gateway sin acceso directo a la API externa. El ensayo Gemini verificó por separado la ruta de salida del gateway | Verificado en el entorno de laboratorio descrito |
+| Utilidad posterior a la restitución | `pilot/results/utilidad-gemini-20261118-v11.json`, Gemini 3.1 Flash-Lite en ambos brazos | 15 casos, 10 pares evaluables correctos en ambos brazos, dos bloqueos y dos fallos del proveedor en el brazo protegido |
+| Detección, exposición, rendimiento y recuperación | [Informe de desarrollo v11](REPORT-DESARROLLO-V11.md), JSON por caso y auditoría del simulador | Desarrollo aprobado en las doce configuraciones |
+| Validación reservada | [Repetición 1](REPORT-VALIDACION-V11-R1.md) y [repetición 2](REPORT-VALIDACION-V11-R2.md), 60 casos por configuración y 12 preguntas jurídicas | Flujo aprobado. Recuperación 11/12, cita esperada 4/12 |
+
+La prueba reservada usó el commit `ba3f4eda853c39ab096b6bc0df4a21ebf77b9721` con árbol limpio. Los 24 archivos de resultados coinciden con el modelo, protocolo, huellas de instrucciones y esquemas, índice, embeddings, presupuesto de contexto y hash del conjunto registrados en `pilot/results/congelacion-v11.json`. En cada una de las seis corridas de flujo hubo 60 acciones correctas, 54 envíos, seis bloqueos y cero apariciones visibles de las 66 anotadas en los envíos. Gemini registró cero valores objetivo literales en el texto entregado al adaptador. Los dos fallos del proveedor tienen estado de transmisión desconocido y se excluyeron del conteo de pares. El alcance de la utilidad se limita a copia literal.
 
 ## Stack simulado
 
