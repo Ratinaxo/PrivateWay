@@ -30,6 +30,17 @@ def test_offsets_locales_unicode_repeticiones_y_mensajes():
         assert ms[h["mensaje"]]["texto"][h["inicio"]:h["fin"]] == h["texto"]
 
 
+def test_duplicado_con_corchetes_solo_se_descarta_si_regex_lo_acredita():
+    valor = "contacto@example.test"
+    mensajes = [dict(indice=0, texto=valor)]
+    extraidas = Extraccion.model_validate({"entidades": [entidad(f"[{valor}]", categoria="correo")]})
+    previo = dict(id="r0", mensaje=0, inicio=0, fin=len(valor), categoria="correo",
+                  texto=valor, persona_asociada=False)
+    assert anclar(extraidas, mensajes, [previo]) == [previo]
+    with pytest.raises(ValueError, match="entidad no literal"):
+        anclar(extraidas, mensajes, [])
+
+
 @pytest.mark.parametrize("literal", ["Ana", "ana", "Otro nombre", "mariana"])
 def test_rechaza_alucinacion_subcadena_y_normalizacion(literal):
     ex = Extraccion.model_validate({"entidades":[entidad(literal)]})

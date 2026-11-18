@@ -78,6 +78,14 @@ def test_sin_regex_igual_invoca_slm_y_detecta_persona():
     assert p.slm.entradas[0]["regex"] == []
 
 
+def test_regla_contextual_protege_nombre_declarado_omitido_por_slm():
+    p = pipeline()
+    d = analizar(p, "La encargada del expediente es Elena Dávila.")
+    assert d.accion.value == "seudonimizar"
+    assert "Elena Dávila" not in d.mensajes_salida[0].content
+    assert p.slm.entradas[0]["regex"][0]["texto"] == "Elena Dávila"
+
+
 def test_historial_completo_y_roles_conservados():
     s = SolicitudChat(model="pw-simulado", messages=[Mensaje(role="assistant", content="Ana Torres"),
                                                    Mensaje(role="user", content="Resume lo anterior")])

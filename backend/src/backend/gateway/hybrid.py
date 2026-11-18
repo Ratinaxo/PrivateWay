@@ -43,6 +43,14 @@ class JuicioSLM(DeteccionSLM):
 
 INSTRUCCION = "\n".join((EXTRACCION, NOMBRES, ASOCIACION_SALUD, DECISION, FUNDAMENTO))
 
+_ROL_PERSONA = r"(?:persona(?:\s+solicitante)?|solicitante|paciente|encargad[oa]|responsable|usuari[oa])"
+_PALABRA_NOMBRE = r"[A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]+(?:[-'][A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]+)?"
+_NOMBRE_DECLARADO = re.compile(
+    rf"(?i:\b(?:la|el)\s+{_ROL_PERSONA}(?:\s+[\wáéíóúñü-]+){{0,6}}?"
+    rf"\s+(?:se llama|es)\s+)(?P<nombre>{_PALABRA_NOMBRE}(?:\s+{_PALABRA_NOMBRE}){{1,3}})"
+    r"(?=\s*(?:[.!?;,]|$))"
+)
+
 
 class PipelineHibrido(PipelineRegex):
     listo = True
@@ -105,6 +113,11 @@ class PipelineHibrido(PipelineRegex):
                 regex.append(dict(id=f"r{len(regex)}", mensaje=i, inicio=h.inicio,
                                   fin=h.fin, categoria=h.categoria.value,
                                   texto=h.valor, persona_asociada=False))
+            if self.usar_regex:
+                for m in _NOMBRE_DECLARADO.finditer(mensaje.content):
+                    inicio, fin = m.span("nombre")
+                    regex.append(dict(id=f"r{len(regex)}", mensaje=i, inicio=inicio, fin=fin,
+                                      categoria="persona", texto=m.group("nombre"), persona_asociada=False))
         tiempos = {"regex_ms": (time.perf_counter() - t) * 1000}
         t = time.perf_counter()
         fragmentos = await self.recuperador.buscar(solicitud.messages, regex)

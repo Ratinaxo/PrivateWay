@@ -40,15 +40,67 @@ def evaluar_respuesta(texto, esperado):
     return texto.strip().casefold() == esperado.casefold()
 
 
+def solicitud_caso(texto, campo, alias):
+    return SolicitudChat(model=alias, temperature=0, max_tokens=128, messages=[
+        Mensaje(role="user", content=(
+            f"{texto} Copia literalmente el valor del campo «{campo}». "
+            "Si el valor está entre corchetes, incluye ambos corchetes y todo su contenido. "
+            "Devuelve solo ese valor."
+        ))
+    ])
+
+
+def accion_del_caso(caso):
+    if caso.startswith("negativo"):
+        return "permitir"
+    if caso.startswith("salud"):
+        return "bloquear"
+    return "seudonimizar"
+
+
+async def comprobar_con_simulador(archivo):
+    from .evaluation_flow import BancoFlujo
+    from .hybrid import desde_entorno
+
+    auditoria = archivo.with_suffix(".events.jsonl")
+    if auditoria.exists():
+        raise RuntimeError("Usar una ruta con evidencia independiente")
+    banco = BancoFlujo(desde_entorno(), auditoria)
+    muestras = []
+    try:
+        for caso, texto, campo, esperado in CASOS:
+            solicitud = solicitud_caso(texto, campo, "pw-simulado")
+            decision, error, enviados = await banco.ejecutar(solicitud)
+            accion_esperada = accion_del_caso(caso)
+            accion = decision.accion.value if decision else None
+            visible = (any(esperado in m.content for m in enviados)
+                       if enviados and accion_esperada != "permitir" else None)
+            correcto = (error is None and accion == accion_esperada and visible is not True
+                        and (enviados is None) == (accion_esperada == "bloquear"))
+            muestra = dict(id=caso, accion_esperada=accion_esperada, accion=accion,
+                           error=error, valor_objetivo_literal_en_payload=visible,
+                           transmitida=enviados is not None, correcto=correcto)
+            muestras.append(muestra)
+            print(json.dumps(muestra, ensure_ascii=True), flush=True)
+    finally:
+        await banco.cerrar()
+    aprobada = all(m["correcto"] for m in muestras)
+    with archivo.open("x", encoding="utf-8") as salida:
+        json.dump(dict(protocolo=VERSION, aprobada=aprobada, muestras=muestras), salida, indent=2)
+    return aprobada
+
+
 class ProveedorObservado:
     def __init__(self, adaptador):
         self.adaptador = adaptador
         self.error = None
+        self.enviados = []
 
-    async def completar(self, *args):
+    async def completar(self, modelo, mensajes, solicitud):
         self.error = None
+        self.enviados = [mensaje.content for mensaje in mensajes]
         try:
-            return await self.adaptador.completar(*args)
+            return await self.adaptador.completar(modelo, mensajes, solicitud)
         except ProveedorNoDisponible as exc:
             self.error = exc.codigo
             raise
@@ -81,13 +133,7 @@ async def evaluar(archivo):
     casos = []
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://laboratorio") as cliente:
         for caso, texto, campo, esperado in CASOS:
-            solicitud = SolicitudChat(model="pw-lab", temperature=0, max_tokens=128, messages=[
-                Mensaje(role="user", content=(
-                    f"{texto} Copia literalmente el valor del campo «{campo}». "
-                    "Si el valor está entre corchetes, incluye ambos corchetes y todo su contenido. "
-                    "Devuelve solo ese valor."
-                ))
-            ])
+            solicitud = solicitud_caso(texto, campo, "pw-lab")
             inicio = time.perf_counter()
             estado_base = "completada"
             correcta_base = None
@@ -103,6 +149,7 @@ async def evaluar(archivo):
             tiempo_base = time.perf_counter() - inicio
             inicio = time.perf_counter()
             proveedor.error = None
+            proveedor.enviados = []
             respuesta = await cliente.post("/api/v1/secure-chat", json=solicitud.model_dump(),
                                            headers={"Authorization": "Bearer " + token})
             tiempo_gateway = time.perf_counter() - inicio
@@ -118,9 +165,15 @@ async def evaluar(archivo):
                     correcta_gateway = evaluar_respuesta(eleccion["message"]["content"], esperado)
             else:
                 estado_gateway = "bloqueada" if codigo == "POLITICA_BLOQUEA" else "fallida"
+            accion_esperada = accion_del_caso(caso)
+            accion = (cuerpo.get("decision", {}).get("accion") if respuesta.status_code == 200
+                      else "bloquear" if codigo == "POLITICA_BLOQUEA" else None)
+            visible = None
+            if proveedor.enviados and accion_esperada != "permitir":
+                visible = any(esperado in mensaje for mensaje in proveedor.enviados)
             casos.append(dict(id=caso, base=estado_base, gateway=estado_gateway, codigo=codigo,
-                              accion_gateway=cuerpo.get("decision", {}).get("accion") if respuesta.status_code == 200
-                                             else "bloquear" if codigo == "POLITICA_BLOQUEA" else None,
+                              accion_esperada=accion_esperada, accion_gateway=accion,
+                              valor_objetivo_literal_en_payload=visible,
                               codigo_proveedor_base=codigo_base, codigo_proveedor_gateway=proveedor.error,
                               transmision_gateway=auditoria.estado.get(respuesta.headers.get("X-Gateway-Event-ID")),
                               base_correcta=correcta_base, gateway_correcta=correcta_gateway,
@@ -130,6 +183,8 @@ async def evaluar(archivo):
     resumen = dict(modelo=ruta.modelo_externo, protocolo=VERSION, tarea="copia-literal-v2",
                    temperature=0, max_tokens=128, muestras=casos,
                    pares_evaluables=len(pares),
+                   acciones_correctas=sum(c["accion_gateway"] == c["accion_esperada"] for c in casos),
+                   objetivos_literales_en_payload=sum(c["valor_objetivo_literal_en_payload"] is True for c in casos),
                    base_aciertos=sum(c["base_correcta"] for c in pares),
                    gateway_aciertos=sum(c["gateway_correcta"] for c in pares))
     with archivo.open("x", encoding="utf-8") as salida:
@@ -139,7 +194,12 @@ async def evaluar(archivo):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--salida", type=Path, required=True)
+    parser.add_argument("--solo-simulador", action="store_true")
     args = parser.parse_args()
     if args.salida.exists():
         parser.error("Usar un archivo nuevo")
-    asyncio.run(evaluar(args.salida))
+    if args.solo_simulador:
+        if not asyncio.run(comprobar_con_simulador(args.salida)):
+            raise SystemExit(1)
+    else:
+        asyncio.run(evaluar(args.salida))
