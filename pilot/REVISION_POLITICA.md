@@ -9,17 +9,19 @@ derecho chileno. No expresa una conclusión jurídica ni sustituye esa revisión
 |---|---|
 | Ninguno de los seis tipos cubiertos | Permitir |
 | RUN, correo, teléfono, persona o dirección | Reemplazar por marcadores locales |
-| Salud | Bloquear |
+| Salud asociada explícitamente a una persona | Bloquear |
+| Salud sin asociación personal | Reemplazar por marcador local |
 
-La regla se aplica después de combinar REGEX y SLM. La decisión es del gateway; el SLM solo
-extrae entidades. La recuperación de artículos es contextual y no deriva esta regla. El
-resultado del sistema no determina si un tratamiento es lícito.
+La regla experimental v2 se aplica después de combinar REGEX y SLM. La decisión es del
+gateway; el SLM informa si un dato de salud está asociado a una persona y redacta el
+fundamento, pero no cambia la acción. La recuperación de artículos es contextual y no deriva
+esta regla. El resultado del sistema no determina si un tratamiento es lícito.
 
 ## Preguntas para la revisión
 
-1. ¿La regla de bloquear toda solicitud donde se detecte salud es adecuada como control de
-   riesgo del producto? ¿Debe describirse como política interna, y con qué excepciones y
-   procedimiento de revisión humana?
+1. ¿La regla experimental v2 —bloquear salud asociada a una persona y seudonimizar salud
+   genérica— es adecuada como control de riesgo del producto? ¿Qué evidencia permite
+   establecer esa asociación y qué revisión humana requiere?
 2. ¿Qué condiciones debe cumplir el reemplazo con marcadores para llamarlo
    «seudonimización»? El piloto no implementa restitución y no conserva una tabla persistente
    de correspondencias; validar si el término debe cambiarse en interfaces e informe.

@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from backend.deteccion.hallazgo import Categoria, Hallazgo, Procedencia
 from .contracts import Accion, Mensaje
 from .pipeline import AnalisisNoDisponible, DecisionValidada
+from .policy import accion_tecnica
 from .regex_pipeline import PipelineRegex, seudonimizar_texto
 from .slm_protocol import VERSION as SLM_PROTOCOL_VERSION
 
@@ -23,6 +24,7 @@ class EntidadSLM(BaseModel):
     categoria: Literal["run", "correo", "telefono", "persona", "direccion", "salud"]
     texto: str = Field(min_length=1, max_length=20000)
     mensaje: int = Field(ge=0)
+    persona_asociada: bool
 
 
 class JuicioSLM(BaseModel):
@@ -52,7 +54,7 @@ def _explicacion(accion, por_mensaje, fragmentos):
     categorias = sorted({h.categoria.value for hs in por_mensaje for h in hs})
     if accion == Accion.BLOQUEAR:
         regla = "PW-PRIVACIDAD-SALUD-01"
-        texto = "El piloto bloquea solicitudes cuando detecta la categoría salud."
+        texto = "El piloto bloquea solicitudes cuando detecta salud asociada a una persona."
     elif accion == Accion.SEUDONIMIZAR:
         regla = "PW-PRIVACIDAD-PII-01"
         texto = "El piloto reemplaza los hallazgos detectados por marcadores locales."
@@ -86,18 +88,18 @@ y assistant. Detecta cada aparición literal
 de RUN, correo, teléfono, nombre de persona, dirección y salud. No inventes entidades.
 Para cada entidad contextual devuelve su texto literal exacto y el índice de mensaje desde cero.
 No calcules offsets ni inventes ids: el gateway localiza el texto exacto de forma determinista.
-Criterio EXPERIMENTAL aplicado por el gateway: sin hallazgos permitir; identificadores seudonimizar;
-cualquier hallazgo de salud bloquear. No propongas una acción, justificación ni referencias.
+Criterio EXPERIMENTAL aplicado por el gateway: sin hallazgos permitir; identificadores
+seudonimizar; salud asociada a una persona bloquear. No propongas una acción, justificación ni referencias.
 Nombre y apellido de una misma persona forman UN SOLO segmento, incluyendo el espacio.
 EJEMPLOS DE FORMATO (no son mensajes que debas analizar):
 Texto actual: "La persona solicitante se llama Ana Torres."
-Salida: {"hallazgos":[{"categoria":"persona","texto":"Ana Torres","mensaje":0}]}
+Salida: {"hallazgos":[{"categoria":"persona","texto":"Ana Torres","mensaje":0,"persona_asociada":false}]}
 Texto actual: "Ana Torres tiene diabetes."
-Salida: {"hallazgos":[{"categoria":"persona","texto":"Ana Torres","mensaje":0},{"categoria":"salud","texto":"diabetes","mensaje":0}]}
+Salida: {"hallazgos":[{"categoria":"persona","texto":"Ana Torres","mensaje":0},{"categoria":"salud","texto":"diabetes","mensaje":0,"persona_asociada":true}]}
 Texto actual: "Resume este texto: Elena Rojas tiene asma."
-Salida: {"hallazgos":[{"categoria":"persona","texto":"Elena Rojas","mensaje":0},{"categoria":"salud","texto":"asma","mensaje":0}]}
+Salida: {"hallazgos":[{"categoria":"persona","texto":"Elena Rojas","mensaje":0},{"categoria":"salud","texto":"asma","mensaje":0,"persona_asociada":true}]}
 Texto actual: "Mi domicilio es Pasaje del Faro 42."
-Salida: {"hallazgos":[{"categoria":"direccion","texto":"Pasaje del Faro 42","mensaje":0}]}
+Salida: {"hallazgos":[{"categoria":"direccion","texto":"Pasaje del Faro 42","mensaje":0,"persona_asociada":false}]}
 Texto actual: "Hola mundo."
 Salida: {"hallazgos":[]}
 Usa los ejemplos solo como guía de formato; analiza los mensajes actuales. Devuelve una sola entidad por combinación
@@ -225,8 +227,12 @@ class PipelineHibrido(PipelineRegex):
                 clave = (h.mensaje, inicio, fin, h.categoria)
                 entidad = entidades.setdefault(clave, {
                     "texto": h.texto, "fuentes": set(),
-                    "persona_asociada": h.categoria == "salud"})
+                    "persona_asociada": False})
                 entidad["fuentes"].add("slm")
+                if h.categoria == "salud":
+                    entidad["persona_asociada"] = (
+                        entidad["persona_asociada"] or h.persona_asociada
+                    )
         for (mensaje, inicio, fin, categoria_texto), entidad in entidades.items():
             categoria = Categoria(categoria_texto)
             procedencia = (Procedencia.REGEX if "regex" in entidad["fuentes"]
@@ -240,9 +246,10 @@ class PipelineHibrido(PipelineRegex):
                                 confianza=h.confianza,
                                 fuentes=sorted(entidades[(i, h.inicio, h.fin, h.categoria.value)]["fuentes"]))
                            for i, hallazgos in enumerate(por_mensaje) for h in hallazgos]
-        hay_salud = any(h.categoria == Categoria.SALUD for hs in por_mensaje for h in hs)
-        esperada = (Accion.BLOQUEAR if hay_salud else
-                    Accion.SEUDONIMIZAR if entidades else Accion.PERMITIR)
+        esperada = Accion(accion_tecnica([
+            {"categoria": clave[3], "persona_asociada": entidad["persona_asociada"]}
+            for clave, entidad in entidades.items()
+        ]))
         if solo_deteccion:
             return DecisionValidada(esperada, "DETECCION_EXPERIMENTAL", validacion_completa=False,
                 traza={"hallazgos":hallazgos_traza,
@@ -280,9 +287,7 @@ class PipelineHibrido(PipelineRegex):
             if not isinstance(justificacion, str) or not justificacion.strip() or len(justificacion) > 400:
                 raise ValueError("fundamento inválido")
         else:
-            # Adaptador para dobles de prueba antiguos; el cliente vLLM real
-            # siempre ejecuta el juicio final tras la unión.
-            justificacion = _explicacion(esperada, por_mensaje, fragmentos)["texto"]
+            raise ValueError("fundamento SLM ausente")
         t = time.perf_counter()
         etiquetas = {}
         nuevos = []
@@ -299,11 +304,11 @@ class PipelineHibrido(PipelineRegex):
         explicacion = _explicacion(esperada, por_mensaje, fragmentos)
         explicacion["texto"] = justificacion
         traza = dict(modelo=self.slm.modelo, revision_modelo=getattr(self.slm,"revision","no_registrada"),
-                     instrucciones="extraccion-paralela+politica-determinista+fundamento-v2",
-                     protocolo=SLM_PROTOCOL_VERSION, esquema="juicio-v4",
-                     criterio="union-detectores-original-v1",
+                     instrucciones="extraccion-paralela+politica-determinista+fundamento-v3",
+                     protocolo=SLM_PROTOCOL_VERSION, esquema="juicio-v5",
+                     criterio="union-detectores-original-v2-salud-asociada",
                      reglas="regex-v1+slm-extraccion-validada-v1",
-                     politica_accion="experimental-gateway-v1",
+                     politica_accion="experimental-gateway-v2-salud-asociada",
                      fusion="offset-mensaje-categoria-v1",
                      accion_aplicada=esperada.value,
                      accion_propuesta=juicio_final["accion"] if callable(decidir) else esperada.value,

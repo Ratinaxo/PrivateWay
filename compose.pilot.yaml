@@ -94,7 +94,10 @@ services:
       - ./pilot/datasets:/pilot/datasets:ro
       - ./pilot/models.lock.json:/pilot/models.lock.json:ro
       - ./pilot/results:/pilot/results
-    networks: [local]
+    networks:
+      local: {}
+      web:
+        aliases: [pilot-gateway]
     depends_on:
       postgres: {condition: service_healthy}
       embeddings: {condition: service_healthy}
@@ -109,6 +112,7 @@ services:
 networks:
   ingress: {}
   local: {internal: true}
+  web: {internal: true}
   download: {}
 volumes:
   pilot_db:

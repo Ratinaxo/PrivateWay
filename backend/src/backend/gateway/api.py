@@ -18,11 +18,30 @@ from .audit import AuditoriaArchivo, AuditoriaNoConfigurada, AuditoriaNoDisponib
 from .audit_content import ContenidoAuditoria
 from .conversations import ConversacionesPostgres, HistorialNoDisponible, validar_conversacion, _uuid
 from .config import Configuracion, proveedores_desde_entorno
-from .contracts import Accion, SolicitudChat
-from .pipeline import AnalisisNoDisponible, ContextoEjecucion
+from .contracts import Accion, Mensaje, SolicitudChat
+from .pipeline import AnalisisNoDisponible, ContextoEjecucion, DecisionValidada
 from .providers import ProveedorNoDisponible
 
 _CODIGO = re.compile(r"^[A-Z0-9_]{2,64}$")
+_CODIGOS_ANALISIS = frozenset({
+    "ANALISIS_NO_DISPONIBLE", "HIBRIDO_FALLO", "HIBRIDO_TIMEOUT",
+    "SLM_ESQUEMA_INVALIDO", "CONTEXTO_EXCEDIDO", "SLM_SALIDA_INCOMPLETA",
+    "SLM_TEXTO_NO_ENCONTRADO", "GATEWAY_ACCION_INCOHERENTE",
+    "GATEWAY_SELECCION_INVALIDA", "SLM_CITA_INVALIDA",
+    "SLM_FUNDAMENTO_INVALIDO", "RAG_SIN_EVIDENCIA",
+    "FALLO_INTERNO_PIPELINE", "DECISION_CONTRATO_INVALIDO",
+    "DECISION_NO_VALIDADA", "ACCION_INVALIDA", "TRAZA_INVALIDA",
+    "SALIDA_BLOQUEADA_INVALIDA", "SALIDA_INVALIDA", "ROL_SALIDA_INVALIDO",
+    "PERMITIR_MODIFICA_MENSAJE", "COBERTURA_NO_VERIFICADA",
+})
+
+
+def motivo_analisis_seguro(motivo: object) -> str:
+    if isinstance(motivo, str) and motivo in _CODIGOS_ANALISIS:
+        return motivo
+    if isinstance(motivo, str) and re.fullmatch(r"SERVICIO_HTTP_[1-5][0-9]{2}", motivo):
+        return motivo
+    return "ANALISIS_NO_DISPONIBLE"
 
 
 def error(codigo: str, estado: int, evento: str | None = None) -> JSONResponse:
@@ -96,6 +115,22 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
         nombre = unquote(nombre or identificador).strip()
         nombre = "".join(ch for ch in nombre if ch.isprintable() and ch not in "\r\n")[:100]
         return (identificador, nombre or identificador)
+
+    async def fallo_analisis(evento: str, motivo: str, codigo: str = "FALLO_VALIDACION"):
+        """Registra un fallo previo al proveedor sin serializar prompt ni excepciones."""
+        motivo_seguro = motivo_analisis_seguro(motivo)
+        try:
+            await auditoria.registrar({
+                "evento": evento,
+                "fase": "fallo_analisis",
+                "fecha_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "motivo": motivo_seguro,
+                "transmision": "no_realizada",
+            })
+        except Exception:
+            # Sin bitácora no se puede afirmar ni permitir una operación segura.
+            return error("AUDITORIA_NO_DISPONIBLE", 503, evento)
+        return error(codigo, 503, evento)
 
     async def historial_disponible(authorization: str | None, usuario: str | None):
         if not token_interno(authorization, "GATEWAY_HISTORY_TOKEN"):
@@ -233,31 +268,34 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None) 
         try:
             decision = await pipeline.analizar(cuerpo, contexto)
         except AnalisisNoDisponible as exc:
-            try:
-                await auditoria.registrar({"evento": evento, "fase": "fallo_analisis",
-                                          "fecha_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                                          "motivo": exc.codigo if _CODIGO.fullmatch(exc.codigo) else "ANALISIS_NO_DISPONIBLE",
-                                          "transmision": "no_realizada"})
-            except AuditoriaNoDisponible:
-                return error("AUDITORIA_NO_DISPONIBLE", 503, evento)
-            return error("ANALISIS_NO_DISPONIBLE", 503, evento)
+            return await fallo_analisis(evento, exc.codigo, "ANALISIS_NO_DISPONIBLE")
         except Exception:
             # No devolver excepciones con trozos del prompt.
-            return error("FALLO_VALIDACION", 503, evento)
+            return await fallo_analisis(evento, "FALLO_INTERNO_PIPELINE")
 
-        if not decision.validacion_completa or not _CODIGO.fullmatch(decision.codigo_motivo):
-            return error("FALLO_VALIDACION", 503, evento)
-        if decision.accion not in (Accion.PERMITIR, Accion.SEUDONIMIZAR, Accion.BLOQUEAR):
-            return error("FALLO_VALIDACION", 503, evento)
+        if not isinstance(decision, DecisionValidada):
+            return await fallo_analisis(evento, "DECISION_CONTRATO_INVALIDO")
+        if (decision.validacion_completa is not True or
+                not isinstance(decision.codigo_motivo, str) or
+                not _CODIGO.fullmatch(decision.codigo_motivo)):
+            return await fallo_analisis(evento, "DECISION_NO_VALIDADA")
+        if not isinstance(decision.accion, Accion):
+            return await fallo_analisis(evento, "ACCION_INVALIDA")
+        if not isinstance(decision.traza, dict):
+            return await fallo_analisis(evento, "TRAZA_INVALIDA")
+        if decision.accion == Accion.BLOQUEAR and decision.mensajes_salida is not None:
+            return await fallo_analisis(evento, "SALIDA_BLOQUEADA_INVALIDA")
         if decision.accion != Accion.BLOQUEAR:
-            if decision.mensajes_salida is None or len(decision.mensajes_salida) != len(cuerpo.messages):
-                return error("FALLO_VALIDACION", 503, evento)
+            if (not isinstance(decision.mensajes_salida, list) or
+                    len(decision.mensajes_salida) != len(cuerpo.messages) or
+                    any(not isinstance(m, Mensaje) for m in decision.mensajes_salida)):
+                return await fallo_analisis(evento, "SALIDA_INVALIDA")
             if any(a.role != b.role for a, b in zip(decision.mensajes_salida, cuerpo.messages)):
-                return error("FALLO_VALIDACION", 503, evento)
+                return await fallo_analisis(evento, "ROL_SALIDA_INVALIDO")
             if decision.accion == Accion.PERMITIR and decision.mensajes_salida != cuerpo.messages:
-                return error("FALLO_VALIDACION", 503, evento)
-            if decision.accion == Accion.SEUDONIMIZAR and not decision.cobertura_verificada:
-                return error("FALLO_VALIDACION", 503, evento)
+                return await fallo_analisis(evento, "PERMITIR_MODIFICA_MENSAJE")
+            if decision.accion == Accion.SEUDONIMIZAR and decision.cobertura_verificada is not True:
+                return await fallo_analisis(evento, "COBERTURA_NO_VERIFICADA")
 
         # La acción cubre toda la solicitud. Los avisos y la bitácora
         # necesitan distinguir si realmente se alteró el mensaje más reciente.

@@ -53,11 +53,23 @@ class Slm:
             for texto, categoria in [("a@example.test", "correo"), ("Ana Torres", "persona"),
                                      ("diabetes", "salud")]:
                 if texto in m["texto"]:
-                    hs.append(dict(mensaje=m["indice"], categoria=categoria, texto=texto))
+                    hs.append(dict(mensaje=m["indice"], categoria=categoria, texto=texto,
+                                   persona_asociada=categoria == "salud"))
         juicio = dict(hallazgos=hs)
         if self.editar:
             juicio = self.editar(juicio)
         return juicio if isinstance(juicio, str) else json.dumps(juicio)
+    async def decidir_y_fundamentar(self, entrada, hallazgos):
+        salud_personal = any(h["categoria"] == "salud" and h["persona_asociada"]
+                             for h in hallazgos)
+        accion = ("bloquear" if salud_personal else
+                  "seudonimizar" if hallazgos else "permitir")
+        return json.dumps({
+            "accion": accion,
+            "seleccionados": [h["id"] for h in hallazgos] if hallazgos else [],
+            "referencias": [f["id"] for f in entrada["fragmentos"]],
+            "justificacion": "Clasificación técnica del piloto con fuente recuperada.",
+        })
 
 
 def pipeline(editar=None):
@@ -155,6 +167,38 @@ def test_pipeline_real_usa_extraccion_validada_y_offsets_del_slm():
     assert "regex" not in slm.entrada_extraccion
     assert d.accion.value == "seudonimizar"
     assert d.mensajes_salida[0].content == "[PW_PERSONA_1]"
+
+
+def test_salud_sin_asociacion_personal_se_seudonimiza():
+    class SlmSaludGeneral(Slm):
+        async def juzgar(self, instruccion, entrada, esquema):
+            return json.dumps({"hallazgos": [
+                {"mensaje": 0, "categoria": "salud", "texto": "diabetes",
+                 "persona_asociada": False}
+            ]})
+    d = analizar(PipelineHibrido(recuperador=Rag(), slm=SlmSaludGeneral(),
+                                 detector=Detector()), "¿Qué significa diabetes?")
+    assert d.accion.value == "seudonimizar"
+    assert "[PW_SALUD_1]" in d.mensajes_salida[0].content
+
+
+def test_salud_coincidente_regex_slm_conserva_asociacion_y_bloquea():
+    class DetectorSalud:
+        def analizar(self, texto):
+            inicio = texto.index("diabetes")
+            return [Hallazgo(Categoria.SALUD, "diabetes", inicio, inicio + 8,
+                             "test", Procedencia.REGEX, 1)]
+    class SlmSalud(Slm):
+        async def juzgar(self, instruccion, entrada, esquema):
+            return json.dumps({"hallazgos": [
+                {"mensaje": 0, "categoria": "salud", "texto": "diabetes",
+                 "persona_asociada": True}
+            ]})
+    p = PipelineHibrido(recuperador=Rag(), slm=SlmSalud(), detector=DetectorSalud())
+    d = analizar(p, "Ana tiene diabetes")
+    assert d.accion.value == "bloquear"
+    salud = next(h for h in d.traza["hallazgos"] if h["categoria"] == "salud")
+    assert salud["fuentes"] == ["regex", "slm"]
 
 
 def test_juicio_final_recibe_la_union_y_sus_referencias():

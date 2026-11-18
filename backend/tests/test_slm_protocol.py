@@ -43,6 +43,15 @@ def test_conserva_regex_y_deduplica_mismo_span():
     assert anclar(ex,[{"indice":0,"texto":"a@example.test"}],[previo]) == [previo]
 
 
+def test_fusion_de_salud_combina_asociacion_personal():
+    previo = dict(id="r0", mensaje=0, inicio=10, fin=18, categoria="salud",
+                  texto="diabetes", persona_asociada=False)
+    ex = Extraccion.model_validate({"entidades": [entidad("diabetes", categoria="salud")]})
+    salida = anclar(ex, [{"indice": 0, "texto": "Ana tiene diabetes"}], [previo])
+    assert len(salida) == 1
+    assert salida[0]["persona_asociada"] is True
+
+
 def test_accion_determinista_y_fuentes_solo_al_fundamento():
     class Cliente:
         def __init__(self): self.llamadas=[]

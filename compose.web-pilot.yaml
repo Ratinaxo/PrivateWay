@@ -1,0 +1,17 @@
+# Conecta el frontend autenticado al gateway híbrido aislado del piloto.
+# Usar junto con compose.yaml y compose.dev.yaml.
+services:
+  frontend:
+    environment:
+      GATEWAY_INTERNAL_URL: http://pilot-gateway:8000
+      GATEWAY_CLIENT_TOKEN: ${PRIVATEWAY_E2E_GATEWAY_TOKEN:?Generar .env.web-pilot}
+      GATEWAY_HISTORY_TOKEN: ${PRIVATEWAY_E2E_HISTORY_TOKEN:?Generar .env.web-pilot}
+      GATEWAY_AUDIT_READ_TOKEN: ${PRIVATEWAY_E2E_AUDIT_READ_TOKEN:?Generar .env.web-pilot}
+    networks:
+      - private
+      - pilot_web
+
+networks:
+  pilot_web:
+    external: true
+    name: privateway-pilot_web

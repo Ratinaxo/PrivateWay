@@ -264,7 +264,7 @@ class ProveedorCompatibleChat:
         p = urlsplit(self.base_url)
         if (p.scheme != "https" or not p.hostname or p.username or p.password
                 or p.query or p.fragment or p.port not in (None, 443)):
-            raise ValueError("La URL del proveedor debe ser HTTPS administrada")
+            raise ValueError("La URL del proveedor debe ser HTTPS")
         try:
             ipaddress.ip_address(p.hostname)
         except ValueError:

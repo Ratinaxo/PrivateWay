@@ -26,7 +26,7 @@ class Procedencia(str, Enum):
 @dataclass(frozen=True)
 class Hallazgo:
     categoria: Categoria
-    valor: str = field(repr=False)  # PII: nunca mostrar en repr/logs.
+    valor: str = field(repr=False)  # PII
     inicio: int
     fin: int
     reconocedor: str

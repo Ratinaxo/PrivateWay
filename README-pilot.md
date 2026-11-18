@@ -38,6 +38,47 @@ de `.env.pilot` mediante `Authorization: Bearer …`. No copiarlo en tickets, re
 El piloto no incluye frontend ni Keycloak duplicados: prueba la misma API del proyecto
 y permite conectar un BFF existente configurando `GATEWAY_INTERNAL_URL` y su token.
 
+## Prueba E2E desde la web local (Linux)
+
+Los overrides opcionales conectan el frontend autenticado del proyecto con el gateway
+híbrido del piloto. Keycloak y el proveedor simulado siguen siendo los de desarrollo;
+el frontend no comparte la red del SLM, embeddings ni PostgreSQL. El gateway conserva
+su propia base, auditoría y claves de cifrado. Usa únicamente mensajes sintéticos.
+
+Genera una vez los tokens de puente locales; el archivo queda ignorado por Git y con
+permisos `0600`:
+
+```bash
+python3 scripts/prepare_web_pilot.py
+```
+
+Primero inicia los servicios y modelos del piloto como en la preparación anterior. Con
+el corpus ya ingestado, aplica el override del gateway y después el del frontend:
+
+```bash
+docker compose --env-file .env.pilot -f compose.pilot.yaml up -d slm embeddings postgres
+docker compose --env-file .env.pilot -f compose.pilot.yaml run --rm --no-deps backend python -m backend.gateway.rag /corpus/manifest.json
+docker compose --env-file .env.pilot --env-file .env.web-pilot -f compose.pilot.yaml -f compose.pilot.web.yaml up -d --build backend proxy
+docker compose --env-file .env --env-file .env.web-pilot -f compose.yaml -f compose.dev.yaml -f compose.web-pilot.yaml up -d --build frontend proxy
+curl http://127.0.0.1:8082/ready
+```
+
+Abre `http://127.0.0.1:8080`, inicia sesión y selecciona el proveedor simulado y el
+modelo `pw-simulado`. El BFF apunta a `pilot-gateway:8000` por una red Docker dedicada;
+la autenticación de usuario no cambia. El historial se almacena cifrado en la base
+PostgreSQL exclusiva del piloto. La respuesta del proveedor es simulada: esta prueba
+recorre navegador, BFF, autenticación, gateway híbrido y persistencia, sin un LLM externo.
+Conserva `.env.web-pilot`: su clave cifra el historial persistente y, si se pierde, las
+conversaciones existentes ya no se podrán descifrar.
+
+Para volver al gateway principal, recrea frontend y proxy sin el override E2E:
+
+```bash
+docker compose --env-file .env -f compose.yaml -f compose.dev.yaml up -d --force-recreate frontend proxy
+```
+
+No uses `down -v`; los volúmenes contienen el corpus indexado, auditoría e historial.
+
 ## Corpus y criterios
 
 BCN `obtxml` devuelve la versión vigente, no un consolidado futuro. Por ello se conserva
@@ -54,7 +95,7 @@ La ingesta activa una versión completa dentro de una transacción y no modifica
 previas. Repetirla con el mismo manifiesto y encoder no duplica fragmentos.
 
 Cobertura inicial: RUN, correo, teléfono, persona, dirección y salud. Sin hallazgos se
-permite; identificadores se sustituyen por marcadores; los hallazgos de salud bloquean.
+permite; identificadores se sustituyen por marcadores; salud asociada a una persona bloquea.
 El SLM informa entidades contextuales con texto literal y mensaje; el gateway calcula sus
 offsets, agrega directamente los hallazgos REGEX y aplica la regla experimental. Es una
 regla del piloto, no una conclusión jurídica universal.

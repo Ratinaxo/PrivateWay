@@ -22,7 +22,7 @@ class SolicitudChat(BaseModel):
     model_config = ConfigDict(extra="forbid")
     model: str = Field(min_length=1, max_length=100)
     messages: list[Mensaje] = Field(min_length=1, max_length=30)
-    stream: Literal[False] = False  # Streaming aún no inspeccionado: se rechaza.
+    stream: Literal[False] = False  # Streaming aún no inspeccionado se rechaza.
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1, le=8192)
 
