@@ -236,6 +236,14 @@ def test_decision_final_incoherente_falla_cerrado_sin_transmitir(tmp_path, monke
     assert not espia.llamadas
 
 
+def test_regla_contextual_protege_nombre_declarado_omitido_por_slm():
+    p = pipeline()
+    d = analizar(p, "La encargada del expediente es Elena Dávila.")
+    assert d.accion.value == "seudonimizar"
+    assert "Elena Dávila" not in d.mensajes_salida[0].content
+    assert p.slm.entradas[0]["regex"][0]["texto"] == "Elena Dávila"
+
+
 def test_historial_completo_y_roles_conservados():
     s = SolicitudChat(model="pw-simulado", messages=[Mensaje(role="assistant", content="Ana Torres"),
                                                    Mensaje(role="user", content="Resume lo anterior")])
@@ -274,14 +282,15 @@ class Espia(ProveedorSimulado):
         return await super().completar(modelo, mensajes, solicitud)
 
 
-def cliente(p, tmp_path, monkeypatch, auditoria=None):
+def cliente(p, tmp_path, monkeypatch, auditoria=None, conversaciones=None):
     from cryptography.fernet import Fernet
     monkeypatch.setenv("GATEWAY_AUDIT_CONTENT_KEY", Fernet.generate_key().decode())
     monkeypatch.setenv("GATEWAY_AUDIT_CONTENT_DIR", str(tmp_path))
     espia = Espia()
     c = TestClient(create_app(config=Configuracion(tokens_cliente=(TOKEN,),
                         rutas={"pw-simulado": RutaModelo("simulado", "demo")}),
-                        pipeline=p, auditoria=auditoria or Auditoria(), adaptadores={"simulado": espia}))
+                        pipeline=p, auditoria=auditoria or Auditoria(), adaptadores={"simulado": espia},
+                        conversaciones=conversaciones))
     return c, espia
 
 
@@ -392,3 +401,108 @@ def test_deteccion_intrinseca_no_necesita_decision():
     d=asyncio.run(p.detectar(s,CTX))
     assert not d.validacion_completa and d.mensajes_salida is None
     assert d.traza["hallazgos"][0]["texto"] == "Ana Torres"
+
+
+def test_chat_restituye_marcador_solo_de_su_solicitud(tmp_path, monkeypatch):
+    from backend.gateway.contracts import RespuestaProveedor
+
+    respuestas = []
+
+    async def eco(self, modelo, mensajes, solicitud):
+        self.llamadas.append(mensajes)
+        marcador = mensajes[0].content
+        assert marcador.startswith("[PW_PERSONA_")
+        assert "Ana Torres" not in marcador
+        respuestas.append(marcador)
+        alterado = marcador[:-2] + ("a" if marcador[-2] != "a" else "b") + "]"
+        return RespuestaProveedor(content=" ".join([*respuestas, alterado]))
+
+    monkeypatch.setattr(Espia, "completar", eco)
+    c, _ = cliente(pipeline(), tmp_path, monkeypatch)
+    for _ in range(2):
+        r = c.post("/api/v1/secure-chat", headers={"Authorization": "Bearer " + TOKEN},
+                   json={"model": "pw-simulado", "messages": [{"role": "user", "content": "Ana Torres"}]})
+        assert r.status_code == 200
+        contenido = r.json()["respuesta"]["choices"][0]["message"]["content"]
+        assert contenido.count("Ana Torres") == 1
+        assert respuestas[-1] not in contenido
+        assert "[PW_PERSONA_" in contenido  # El marcador alterado no se restaura.
+    assert respuestas[0] != respuestas[1]
+    assert respuestas[0] in contenido
+
+
+def test_chat_restituye_en_otro_turno_solo_en_conversacion_propia(tmp_path, monkeypatch):
+    from backend.gateway.contracts import RespuestaProveedor
+
+    owner = "00000000-0000-0000-0000-000000000001"
+    primera = "00000000-0000-0000-0000-000000000002"
+    segunda = "00000000-0000-0000-0000-000000000003"
+    otro = "00000000-0000-0000-0000-000000000004"
+    historial_token = "historial-prueba-distinto"
+    monkeypatch.setenv("GATEWAY_HISTORY_TOKEN", historial_token)
+    almacen = {(owner, primera): {}, (owner, segunda): {}}
+
+    class Historial:
+        async def guardar_marcadores(self, usuario, chat, valores):
+            almacen[usuario, chat].update(valores)
+
+        async def restituir(self, usuario, chat, texto):
+            return almacen[usuario, chat].get(texto, texto)
+
+    marcadores = []
+
+    async def eco(self, modelo, mensajes, solicitud):
+        self.llamadas.append(mensajes)
+        if not marcadores:
+            marcadores.append(mensajes[0].content)
+            assert marcadores[0].startswith("[PW_PERSONA_")
+        return RespuestaProveedor(content=marcadores[0])
+
+    monkeypatch.setattr(Espia, "completar", eco)
+    c, espia = cliente(pipeline(), tmp_path, monkeypatch, conversaciones=Historial())
+
+    def enviar(texto, chat, usuario=owner, credencial=historial_token):
+        return c.post("/api/v1/secure-chat", headers={
+            "Authorization": "Bearer " + TOKEN, "X-PrivateWay-User-Id": usuario,
+            "X-PrivateWay-Conversation-Id": chat, "X-PrivateWay-History-Auth": "Bearer " + credencial,
+        }, json={"model": "pw-simulado", "messages": [{"role": "user", "content": texto}]})
+
+    for texto, chat in [("Ana Torres", primera), ("Continúa", primera), ("Continúa", segunda)]:
+        r = enviar(texto, chat)
+        assert r.status_code == 200
+        assert r.json()["respuesta"]["choices"][0]["message"]["content"] == (
+            "Ana Torres" if chat == primera else marcadores[0]
+        )
+    assert enviar("Continúa", primera, usuario=otro).status_code == 503
+    assert enviar("Continúa", primera, credencial=TOKEN).status_code == 401
+    assert len(espia.llamadas) == 3
+
+
+def test_fallo_de_restitucion_registra_respuesta_recibida(tmp_path, monkeypatch):
+    owner = "00000000-0000-0000-0000-000000000001"
+    historial_token = "historial-prueba-distinto"
+    monkeypatch.setenv("GATEWAY_HISTORY_TOKEN", historial_token)
+
+    class Historial:
+        async def guardar_marcadores(self, *_):
+            pass
+
+        async def restituir(self, *_):
+            raise RuntimeError("fallo de PostgreSQL")
+
+    class Registro(Auditoria):
+        eventos = []
+
+        async def registrar(self, datos):
+            self.eventos.append(datos)
+
+    registro = Registro()
+    c, espia = cliente(pipeline(), tmp_path, monkeypatch, auditoria=registro, conversaciones=Historial())
+    r = c.post("/api/v1/secure-chat", headers={
+        "Authorization": "Bearer " + TOKEN, "X-PrivateWay-User-Id": owner,
+        "X-PrivateWay-Conversation-Id": owner, "X-PrivateWay-History-Auth": "Bearer " + historial_token,
+    }, json={"model": "pw-simulado", "messages": [{"role": "user", "content": "Hola"}]})
+    assert r.status_code == 503
+    assert r.json()["error"]["code"] == "FALLO_POSPROCESAMIENTO"
+    assert len(espia.llamadas) == 1
+    assert registro.eventos[-1]["transmision"] == "respuesta_recibida_posprocesamiento_fallido"

@@ -33,13 +33,29 @@ def main():
     parser.add_argument("--limite", type=int)
     parser.add_argument("--dataset", choices=["piloto", "v2"], default="piloto",
                         help="piloto: benchmark inicial; v2: benchmark ampliado de desarrollo")
+    parser.add_argument("--repeticiones", type=int, default=1)
+    parser.add_argument("--output-dir", type=Path,
+                        help="Directorio nuevo dentro de pilot/results para aislar esta corrida")
     args = parser.parse_args()
+    if args.repeticiones < 1 or (args.limite is not None and args.limite < 1):
+        parser.error("Los conteos deben ser positivos")
     os.chdir(ROOT)
     if not args.smoke_only:
         # Solicita/renueva la contraseña; los comandos Docker usan sudo -n.
         renovar_sudo()
-    salida = ROOT / "pilot/results"
-    salida.mkdir(exist_ok=True)
+    base_resultados = (ROOT / "pilot/results").resolve()
+    salida = (args.output_dir.resolve() if args.output_dir else
+              base_resultados / datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    if not salida.is_relative_to(base_resultados):
+        parser.error("output-dir debe estar dentro de pilot/results")
+    if salida.exists() and any(salida.iterdir()):
+        parser.error("Usar un directorio vacío para no mezclar ejecuciones")
+    salida.mkdir(parents=True, exist_ok=True)
+    revision = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    metadata = dict(revision_codigo=revision, estado="en_curso", aprobada=False,
+                    dataset=args.dataset, split="desarrollo", limite=args.limite,
+                    repeticiones=args.repeticiones)
+    escribir_atomico(salida / "run.json", json.dumps(metadata, indent=2))
     env = dict(l.split("=",1) for l in (ROOT / ".env.pilot").read_text().splitlines() if "=" in l and not l.startswith("#"))
     # Esperar únicamente disponibilidad; nunca reintentar solicitudes de usuario.
     deadline = time.monotonic() + 180
@@ -75,10 +91,13 @@ def main():
     escribir_atomico(salida / "smoke.json", json.dumps(smoke, indent=2))
     print(json.dumps({"smoke":smoke}), flush=True)
     fallos_smoke = [s for s in smoke if s["estado"] != s["esperado"] or
+                    (s["accion_esperada"] == "bloquear" and s["codigo"] != "POLITICA_BLOQUEA") or
                     (s["accion_esperada"] != "bloquear" and s["accion"] != s["accion_esperada"])]
     if fallos_smoke:
         raise SystemExit(f"Smoke test falló en {len(fallos_smoke)} de {len(smoke)} casos; se detiene la batería.")
     if args.smoke_only:
+        metadata.update(estado="smoke_completo", aprobada=True)
+        escribir_atomico(salida / "run.json", json.dumps(metadata, indent=2))
         return
     stop = threading.Event()
     marca = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-{os.getpid()}"
@@ -101,28 +120,46 @@ def main():
     th = threading.Thread(target=recursos, daemon=True)
     th.start()
     try:
-        for nivel,modo in [("deteccion",m) for m in ("regex","slm","hibrido")] + [("flujo","hibrido")]:
-            for n in (1,5,10):
-                prefijo = "v2-" if args.dataset == "v2" else ""
-                datos = "/pilot/datasets/v2" if args.dataset == "v2" else "/pilot/datasets"
-                comando = COMPOSE + ["exec","-T","backend","python","-m","backend.gateway.evaluate",
-                    "--datos", datos,
-                    "--modo",modo,"--nivel",nivel,"--split","desarrollo","--concurrencia",str(n),
-                    "--salida",f"/pilot/results/{prefijo}{nivel}-{modo}-dev-c{n}.json"]
-                print(f"Evaluando {nivel}/{modo}, concurrencia {n}", flush=True)
-                if args.limite:
-                    comando += ["--limite", str(args.limite)]
-                renovar_sudo()
-                subprocess.run(comando, check=True)
+        for repeticion in range(1, args.repeticiones + 1):
+            destino = salida if args.repeticiones == 1 else salida / f"repeticion-{repeticion}"
+            destino.mkdir(parents=True, exist_ok=True)
+            for nivel,modo in [("deteccion",m) for m in ("regex","slm","hibrido")] + [("flujo","hibrido")]:
+                for n in (1,5,10):
+                    prefijo = "v2-" if args.dataset == "v2" else ""
+                    datos = "/pilot/datasets/v2" if args.dataset == "v2" else "/pilot/datasets"
+                    relativa = destino.relative_to(base_resultados).as_posix()
+                    comando = COMPOSE + ["exec","-T","backend","python","-m","backend.gateway.evaluate",
+                        "--datos", datos,
+                        "--modo",modo,"--nivel",nivel,"--split","desarrollo","--concurrencia",str(n),
+                        "--salida",f"/pilot/results/{relativa}/{prefijo}{nivel}-{modo}-dev-c{n}.json"]
+                    print(f"Evaluando {nivel}/{modo}, concurrencia {n}, repetición {repeticion}", flush=True)
+                    if args.limite:
+                        comando += ["--limite", str(args.limite)]
+                    renovar_sudo()
+                    subprocess.run(comando, check=True)
     finally:
         stop.set()
         th.join(timeout=25)
     renovar_sudo()
     versiones = subprocess.run(COMPOSE+["images","--format","json"],capture_output=True,text=True,check=True)
     escribir_atomico(salida / "imagenes.json", versiones.stdout)
-    subprocess.run([os.environ.get("PYTHON", "python"), "scripts/export_experiments.py"],
+    flujos = [json.loads(p.read_text(encoding="utf-8"))
+              for p in salida.rglob("*flujo-*-dev-c*.json")]
+    smoke_ok = all(s["estado"] == s["esperado"] and
+                   ((s["accion_esperada"] == "bloquear" and s["codigo"] == "POLITICA_BLOQUEA") or
+                    (s["accion_esperada"] != "bloquear" and s["accion"] == s["accion_esperada"]))
+                   for s in smoke)
+    metadata.update(estado="completo", aprobada=smoke_ok and len(flujos) == args.repeticiones * 3 and all(
+        f["errores"] == 0 and f["aciertos_accion"] == f["n"] and
+        not any(s.get("apariciones_expuestas") or s.get("apariciones_expuestas_parciales")
+                for s in f["muestras"]) for f in flujos))
+    escribir_atomico(salida / "run.json", json.dumps(metadata, indent=2))
+    subprocess.run([os.environ.get("PYTHON", "python"), "scripts/export_experiments.py",
+                    "--resultados", str(salida), "--salida", str(salida / "export")],
                    cwd=ROOT, check=True)
-    print("Evaluaciones de desarrollo terminadas; validacion reservada sin ejecutar.", flush=True)
+    print(f"Evaluación de desarrollo terminada. Resultados: {salida}", flush=True)
+    if not metadata["aprobada"]:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

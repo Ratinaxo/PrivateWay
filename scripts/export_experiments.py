@@ -100,7 +100,8 @@ def main():
     args = ap.parse_args()
     out = args.salida or args.resultados / "export"
     out.mkdir(parents=True, exist_ok=True)
-    files = sorted(p for p in args.resultados.glob("*.json") if p.parent != out and p.name != "smoke.json")
+    files = sorted(p for p in args.resultados.rglob("*.json")
+                   if out not in p.parents and p.name not in {"smoke.json", "run.json", "imagenes.json"})
     experiments = []
     categories, cases, retrieval = [], [], []
     for path in files:
@@ -110,7 +111,7 @@ def main():
             continue
         if not isinstance(d, dict) or not {"modo", "nivel", "n", "muestras"}.issubset(d):
             continue
-        base = {"archivo": path.name, "modo": d.get("modo"), "nivel": d.get("nivel"),
+        base = {"archivo": path.relative_to(args.resultados).as_posix(), "modo": d.get("modo"), "nivel": d.get("nivel"),
                 "split": d.get("split"), "concurrencia": d.get("concurrencia"), "n": d.get("n"),
                 "errores": d.get("errores"), "bloqueos": d.get("bloqueos"),
                 "transmitidas": d.get("transmitidas"), "throughput_casos_s": d.get("throughput"),

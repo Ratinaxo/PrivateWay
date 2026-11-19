@@ -14,7 +14,7 @@ from .pipeline import ContextoEjecucion
 from .hybrid import desde_entorno
 from .slm_protocol import (VERSION as SLM_PROTOCOL_VERSION, EXTRACCION, NOMBRES,
                            REGLA_ACCION, FUNDAMENTO, ExtraccionPorCategoria,
-                           Nombres, Fundamento)
+                           Nombres, AsociacionSalud, AccionPropuesta, Fundamento)
 from .metrics import (metricas, macro_por_categoria, exposicion_solicitud,
                       conteos_parciales)
 
@@ -140,13 +140,22 @@ async def evaluar(args):
                            protocolo=SLM_PROTOCOL_VERSION)
     esquemas_activos = dict(extraccion=ExtraccionPorCategoria.model_json_schema(),
                             revision_nombres=Nombres.model_json_schema(),
+                            asociacion_salud=AsociacionSalud.model_json_schema(),
+                            decision=AccionPropuesta.model_json_schema(),
                             fundamento=Fundamento.model_json_schema())
+    dataset_sha256 = hashlib.sha256((args.datos / f"{args.split}.json").read_bytes()).hexdigest()
+    esquemas_wire_sha256 = hashlib.sha256(json.dumps(
+        esquemas_activos, sort_keys=True).encode()).hexdigest()
     resumen = dict(modo=args.modo, nivel=args.nivel, split=args.split, concurrencia=args.concurrencia,
                    versiones=await p.recuperador.versiones(), modelo=p.slm.modelo,
                    revision_modelo=p.slm.revision,
                    transporte="API ASGI local con auditoria y simulador" if banco else "analizador directo",
                    contexto_tokens=p.slm.contexto,
                    protocolo=SLM_PROTOCOL_VERSION,
+                   dataset_sha256=dataset_sha256,
+                   esquemas_wire_sha256=esquemas_wire_sha256,
+                   prefill_tokens=int(os.environ.get("PRIVATEWAY_PREFILL_TOKENS", "512")),
+                   gpu_memory=float(os.environ.get("PRIVATEWAY_GPU_MEMORY", "0.75")),
                    instrucciones_sha256=hashlib.sha256(json.dumps(
                        prompts_activos, sort_keys=True, ensure_ascii=False).encode()).hexdigest(),
                    esquema_sha256=hashlib.sha256(json.dumps(

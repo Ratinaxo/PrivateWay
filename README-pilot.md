@@ -107,8 +107,10 @@ y fallos técnicos detienen el envío. El modo híbrido nunca retrocede a REGEX 
 La pertinencia de las fuentes para cada decisión necesita evaluación humana.
 
 Los mensajes del historial también se analizan. Las instrucciones dentro de cualquier rol
-son datos para el analizador. No se implementa restitución todavía. La respuesta conserva
-el control REGEX existente, cuya cobertura semántica es limitada.
+son datos para el analizador. Los marcadores aleatorios se restituyen solo en la respuesta
+de la solicitud o conversación autenticada correspondiente; sus correspondencias se cifran
+y se validan por contexto. La respuesta conserva el control REGEX existente, cuya cobertura
+semántica es limitada.
 
 ## Pruebas y mediciones
 
@@ -125,17 +127,18 @@ Repetir para `--modo regex`, `slm`, `hibrido` y concurrencias `1`, `5`, `10`.
 Para reproducir la batería inicial y capturar recursos del stack:
 
 ```powershell
-backend/.venv/Scripts/python.exe scripts/run_pilot.py --limite 10
-backend/.venv/Scripts/python.exe scripts/report_pilot.py
+uv run python scripts/run_pilot.py --limite 10 --output-dir pilot/results/prueba
 ```
 
 Para ejecutar la misma matriz de 12 configuraciones sobre el benchmark ampliado, usa
-`uv run python scripts/run_pilot.py --dataset v2`. La batería utiliza solo desarrollo y
-guarda archivos con prefijo `v2-`; `--limite N` conserva la opción de pantalla exploratoria.
-Al terminar se exportan automáticamente `pilot/results/export/experimentos.csv`,
-`metricas_categoria.csv`, `casos.csv`, `recuperacion.csv` y `manifest.json`. También se
-puede regenerar la exportación sin repetir inferencias con
-`uv run python scripts/export_experiments.py`.
+`uv run python scripts/run_pilot.py --dataset v2`. La batería utiliza solo desarrollo,
+guarda archivos con prefijo `v2-` y crea un directorio fechado bajo `pilot/results/`;
+`--limite N` conserva la opción de pantalla exploratoria. Se pueden aislar repeticiones y
+elegir un directorio vacío con `--repeticiones N --output-dir pilot/results/nombre-corrida`.
+La exportación se guarda en ese mismo directorio, bajo `export/`, con `experimentos.csv`,
+`metricas_categoria.csv`, `casos.csv`, `recuperacion.csv` y `manifest.json`. También se puede
+regenerar para una carpeta concreta con `uv run python scripts/export_experiments.py
+--resultados pilot/results/nombre-corrida --salida pilot/results/nombre-corrida/export`.
 
 Los CSV contienen configuración, modelo/revisión, hashes del prompt y esquema, TP/FP/FN,
 precisión, recall, F1/F2 micro y macro, detección exacta y parcial, latencias p50/p95/p99,
@@ -195,8 +198,8 @@ no habilita el proveedor simulado ni un proveedor externo.
 
 ## Límites de este hito
 
-No incluye restitución por sesión, cobertura de toda la taxonomía, ajuste supervisado,
-proveedor real ni evaluación final de utilidad. Los resultados locales no prueban
+No incluye cobertura de toda la taxonomía, ajuste supervisado, proveedor real ni evaluación
+final de utilidad. Los resultados locales no prueban
 cumplimiento legal ni ausencia de datos personales. Consultar `pilot/REPORT.md` para
 el estado y las evidencias de la ejecución efectivamente realizada.
 

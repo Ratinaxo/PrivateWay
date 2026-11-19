@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import secrets
 import time
 import httpx
 import re
@@ -13,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from backend.deteccion.hallazgo import Categoria, Hallazgo, Procedencia
 from .contracts import Accion, Mensaje
-from .pipeline import AnalisisNoDisponible, DecisionValidada
+from .pipeline import AnalisisNoDisponible, DecisionValidada, Restitucion
 from .policy import accion_tecnica
 from .regex_pipeline import PipelineRegex, seudonimizar_texto
 from .slm_protocol import VERSION as SLM_PROTOCOL_VERSION
@@ -117,6 +118,13 @@ class PipelineHibrido(PipelineRegex):
         super().__init__(detector=detector)
         self.recuperador, self.slm = recuperador, slm
         self.usar_regex = usar_regex
+
+    async def procesar_respuesta(self, solicitud, decision, respuesta, contexto):
+        respuesta = await super().procesar_respuesta(solicitud, decision, respuesta, contexto)
+        if decision.restitucion is None:
+            return respuesta
+        contenido = decision.restitucion.aplicar(respuesta.content, contexto)
+        return respuesta.model_copy(update={"content": contenido})
 
     async def comprobar(self):
         try:
@@ -296,7 +304,9 @@ class PipelineHibrido(PipelineRegex):
             if any("[PW_" in m.content for m in solicitud.messages):
                 raise ValueError("colision marcador")
             for m, hs in zip(solicitud.messages, por_mensaje):
-                saneado = seudonimizar_texto(m.content, hs, etiquetas)
+                saneado = seudonimizar_texto(
+                    m.content, hs, etiquetas, crear_etiqueta=_marcador
+                )
                 if self._detectar(saneado):
                     raise ValueError("regex residual")
                 nuevos.append(Mensaje(role=m.role, content=saneado))
@@ -317,9 +327,18 @@ class PipelineHibrido(PipelineRegex):
                      explicacion=explicacion, justificacion=explicacion["texto"],
                      hallazgos=hallazgos_traza, tiempos=tiempos,
                      versiones=versiones)
+        restitucion = Restitucion(contexto, {
+            marcador: valor for (_, valor), marcador in etiquetas.items()
+        }) if etiquetas else None
         return DecisionValidada(esperada, "HIBRIDO_" + esperada.name,
                                 nuevos if esperada != Accion.BLOQUEAR else None,
-                                True, esperada == Accion.SEUDONIMIZAR, traza)
+                                True, esperada == Accion.SEUDONIMIZAR, traza,
+                                restitucion=restitucion)
+
+
+def _marcador(categoria: Categoria) -> str:
+    sufijo = secrets.token_hex(16).translate(str.maketrans("0123456789abcdef", "abcdefghijklmnop"))
+    return f"[PW_{categoria.name}_{sufijo}]"
 
 
 def desde_entorno():

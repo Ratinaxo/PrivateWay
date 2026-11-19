@@ -1,0 +1,10 @@
+# Cargar junto con compose.pilot.yaml solo en el laboratorio sintético.
+services:
+  backend:
+    networks: [local, proveedor]
+    environment:
+      PRIVATEWAY_LAB_GEMINI_KEY: ${PRIVATEWAY_LAB_GEMINI_KEY:?Falta la credencial de Gemini}
+      GATEWAY_ROUTES_JSON: '{"pw-simulado":{"proveedor":"simulado","modelo_externo":"modelo-demo"},"pw-lab":{"proveedor":"laboratorio","modelo_externo":"${PRIVATEWAY_LAB_GEMINI_MODEL:-gemini-3.1-flash-lite}"}}'
+      GATEWAY_PROVIDERS_JSON: '{"simulado":{"tipo":"simulado"},"laboratorio":{"tipo":"gemini","api_key_env":"PRIVATEWAY_LAB_GEMINI_KEY"}}'
+networks:
+  proveedor: {}

@@ -7,6 +7,7 @@ import { NextResponse } from "next/server"
 import { currentSession } from "@/lib/auth/session"
 import { isAuthConfigured } from "@/lib/auth/config"
 import { GatewayBridgeError, sendProtectedChat } from "@/lib/gateway/server"
+import { HistoryError, historyGateway } from "@/lib/gateway/conversations"
 import type { GatewayChatRequest, GatewayMessage } from "@/lib/gateway/contracts"
 
 export const runtime = "nodejs"
@@ -29,8 +30,10 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value)
 }
 
-function parseRequest(value: unknown): GatewayChatRequest | null {
-  if (!isObject(value) || Object.keys(value).some((key) => !["model", "messages", "stream", "temperature", "max_tokens"].includes(key))) return null
+function parseRequest(value: unknown): (GatewayChatRequest & {conversationId?: string}) | null {
+  if (!isObject(value) || Object.keys(value).some((key) => !["model", "messages", "stream", "temperature", "max_tokens", "conversationId"].includes(key))) return null
+  const conversationId = value.conversationId
+  if (conversationId !== undefined && (typeof conversationId !== "string" || !OIDC_SUB.test(conversationId))) return null
   if (typeof value.model !== "string" || !ALIAS.test(value.model)) return null
   if (!Array.isArray(value.messages) || value.messages.length === 0 || value.messages.length > 30) return null
   if (!value.messages.every((m: unknown) => isObject(m) && Object.keys(m).every((k) => ["role", "content"].includes(k)) &&
@@ -45,6 +48,7 @@ function parseRequest(value: unknown): GatewayChatRequest | null {
     model: value.model,
     messages,
     stream: false,
+    ...(conversationId === undefined ? {} : {conversationId}),
     ...(value.temperature === undefined ? {} : { temperature: value.temperature as number }),
     ...(value.max_tokens === undefined ? {} : { max_tokens: value.max_tokens as number }),
   }
@@ -74,7 +78,7 @@ export async function POST(request: Request) {
   const length = Number(request.headers.get("content-length") ?? 0)
   if (!Number.isSafeInteger(length) || length < 0 || length > MAX_BODY_BYTES) return failure("SOLICITUD_INVALIDA", 413)
 
-  let body: GatewayChatRequest | null
+  let body: ReturnType<typeof parseRequest>
   try {
     const text = await request.text()
     if (Buffer.byteLength(text, "utf8") > MAX_BODY_BYTES) return failure("SOLICITUD_INVALIDA", 413)
@@ -85,12 +89,15 @@ export async function POST(request: Request) {
   if (!body) return failure("SOLICITUD_INVALIDA", 422)
 
   try {
-    const result = await sendProtectedChat(body, {id: session.user.id, name: session.user.name || session.user.id})
+    const {conversationId, ...chat} = body
+    if (conversationId) await historyGateway("HEAD", session.user.id, conversationId)
+    const result = await sendProtectedChat(chat, {id: session.user.id, name: session.user.name || session.user.id, conversationId})
     return NextResponse.json(result, { headers: ERROR_HEADERS })
   } catch (error) {
-    const status = error instanceof GatewayBridgeError ? error.status : 502
+    const knownError = error instanceof GatewayBridgeError || error instanceof HistoryError
+    const status = knownError ? error.status : 502
     return failure(
-      error instanceof GatewayBridgeError ? error.code : "FALLO_BRIDGE",
+      knownError ? error.code : "FALLO_BRIDGE",
       status >= 400 && status <= 599 ? status : 502,
     )
   }

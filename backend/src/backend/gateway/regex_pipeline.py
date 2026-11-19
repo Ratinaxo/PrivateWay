@@ -6,6 +6,7 @@ solo cubre entidades estructuradas y no reemplaza la detección semántica.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import Protocol
 
 from backend.deteccion.hallazgo import Categoria, Hallazgo
@@ -55,12 +56,12 @@ def _fusionar_tramos(texto: str, hallazgos: list[Hallazgo]) -> list[_Tramo]:
 
 
 def seudonimizar_texto(
-    texto: str, hallazgos: list[Hallazgo], etiquetas: dict[tuple[Categoria, str], str]
+    texto: str, hallazgos: list[Hallazgo], etiquetas: dict[tuple[Categoria, str], str],
+    *, crear_etiqueta: Callable[[Categoria], str] | None = None,
 ) -> str:
     """Sustituye cada tramo detectado usando marcadores locales de la solicitud.
 
-    Los valores originales solo residen en ``etiquetas`` durante la ejecución.
-    No se almacenan en la auditoría ni se restituyen automáticamente.
+    El llamador puede proporcionar un generador de marcadores para restitución.
     """
     tramos = _fusionar_tramos(texto, hallazgos)
     partes: list[str] = []
@@ -71,7 +72,7 @@ def seudonimizar_texto(
         clave = (categoria, valor)
         if clave not in etiquetas:
             contador = 1 + sum(c == categoria for c, _ in etiquetas)
-            etiquetas[clave] = f"[PW_{categoria.name}_{contador}]"
+            etiquetas[clave] = crear_etiqueta(categoria) if crear_etiqueta else f"[PW_{categoria.name}_{contador}]"
         partes.extend((texto[cursor:tramo.inicio], etiquetas[clave]))
         cursor = tramo.fin
     partes.append(texto[cursor:])

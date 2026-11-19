@@ -18,6 +18,15 @@ def configurar(root, slm=None):
         }
         destino.write_text("".join(f"{k}={v}\n" for k,v in valores.items()),encoding="utf-8")
         destino.chmod(0o600)
+    lines = destino.read_text(encoding="utf-8").splitlines()
+    adicionales = {
+        "PRIVATEWAY_CONVERSATION_KEY": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
+        "GATEWAY_HISTORY_TOKEN": secrets.token_urlsafe(32),
+    }
+    nuevas = [f"{k}={v}" for k, v in adicionales.items()
+              if not any(line.startswith(k + "=") for line in lines)]
+    if nuevas:
+        destino.write_text("\n".join([*lines, *nuevas]) + "\n", encoding="utf-8")
     if slm is not None:
         carpeta={"3b":"qwen","7b":"qwen7b"}[slm]
         lines=[l for l in destino.read_text(encoding="utf-8").splitlines()

@@ -8,7 +8,7 @@ export class HistoryError extends Error {
   constructor(public readonly status: number, public readonly code: string) {super(code)}
 }
 
-export async function historyGateway(method: "GET" | "PUT" | "DELETE", owner: string, id?: string, data?: Conversation): Promise<unknown> {
+export async function historyGateway(method: "GET" | "PUT" | "DELETE" | "HEAD", owner: string, id?: string, data?: Conversation): Promise<unknown> {
   if (!ID.test(owner) || (id && !ID.test(id))) throw new HistoryError(422, "IDENTIFICADOR_INVALIDO")
   const base = process.env.GATEWAY_INTERNAL_URL
   const token = process.env.GATEWAY_HISTORY_TOKEN
@@ -29,7 +29,9 @@ export async function historyGateway(method: "GET" | "PUT" | "DELETE", owner: st
       ...(data ? {body: JSON.stringify(data)} : {}),
     })
   } catch {throw new HistoryError(503, "HISTORIAL_NO_DISPONIBLE")}
-  if (!response.ok) throw new HistoryError(response.status, "HISTORIAL_NO_DISPONIBLE")
+  if (!response.ok) throw new HistoryError(response.status,
+    method === "HEAD" && response.status === 404 ? "CONVERSACION_NO_DISPONIBLE" : "HISTORIAL_NO_DISPONIBLE")
+  if (method === "HEAD") return null
   try {return await response.json()}
   catch {throw new HistoryError(502, "HISTORIAL_RESPUESTA_INVALIDA")}
 }
