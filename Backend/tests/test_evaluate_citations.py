@@ -20,16 +20,25 @@ def test_recuperar_disposicion_no_equivale_a_citarla(tmp_path, monkeypatch):
         async def versiones(self):
             return {"indice": "indice-sintetico"}
 
+        def _detectar(self, texto):
+            return []
+
         async def buscar(self, mensajes, regex):
-            return [{"id": "art2_f_0"}, {"id": "art2_g_0"}]
+            return [
+                {"id": "ley21719_fragmento_0", "identificador_normativo": "art2_f",
+                 "localizador": "Ley 19.628 art. 2 f)"},
+                {"id": "ley21719_fragmento_1", "identificador_normativo": "art2_g",
+                 "localizador": "Ley 19.628 art. 2 g)"},
+            ]
 
         async def analizar(self, solicitud, contexto):
             pregunta = solicitud.messages[0].content
             if pregunta == "11":
                 raise AnalisisNoDisponible()
+            fragmentos = await self.buscar([], [])
             return SimpleNamespace(traza={
-                "fragmentos": await self.buscar([], []),
-                "referencias": ["art2_f_0" if pregunta == "0" else "art2_g_0"],
+                "fragmentos": fragmentos,
+                "referencias": [fragmentos[0]["id"] if pregunta == "0" else fragmentos[1]["id"]],
                 "justificacion": "Fundamento sintético",
             })
 
@@ -43,6 +52,9 @@ def test_recuperar_disposicion_no_equivale_a_citarla(tmp_path, monkeypatch):
     asyncio.run(evaluate_citations.evaluar("desarrollo", datos, salida))
     resultado = json.loads(salida.read_text(encoding="utf-8"))
     assert resultado["recuperaciones_correctas"] == 12
+    assert resultado["recall_at_4"] == 1.0
+    assert resultado["muestras"][0]["fragmentos_recuperados"][0]["localizador"] == "Ley 19.628 art. 2 f)"
+    assert resultado["muestras"][0]["citas_resueltas"][0]["identificador_normativo"] == "art2_f"
     assert resultado["citas_esperadas"] == 1
     assert resultado["juicios_evaluables"] == 11
     assert resultado["muestras"][-1]["cita_esperada"] is None

@@ -8,6 +8,8 @@ from pathlib import Path
 import httpx
 import psycopg
 
+_LOTE_EMBEDDINGS_INGESTA = 32
+
 
 def conexion():
     return psycopg.connect(host=os.environ["PRIVATEWAY_DB_HOST"],
@@ -22,6 +24,18 @@ def vector(v):
     if not 0.99 <= sum(float(x) ** 2 for x in v) <= 1.01:
         raise ValueError("vector no normalizado")
     return "[" + ",".join(str(float(x)) for x in v) + "]"
+
+
+async def codificar_en_lotes(embeddings, textos, tipo):
+    """Codifica pasajes en peticiones acotadas y conserva el orden de entrada."""
+    vectores = []
+    for inicio in range(0, len(textos), _LOTE_EMBEDDINGS_INGESTA):
+        lote = textos[inicio:inicio + _LOTE_EMBEDDINGS_INGESTA]
+        resultado = await embeddings.codificar(lote, tipo)
+        if not isinstance(resultado, (list, tuple)) or len(resultado) != len(lote):
+            raise ValueError("embeddings incompletos")
+        vectores.extend(resultado)
+    return vectores
 
 
 class EmbeddingsHTTP:
@@ -52,6 +66,17 @@ class EmbeddingsHTTP:
 
 
 class RecuperadorPostgres:
+    # Las señales son intencionalmente categóricas. Nunca se incorpora el valor
+    # detectado por REGEX a una consulta adicional ni a la traza de recuperación.
+    _CONSULTAS_CATEGORIA = {
+        "run": "identificador personal RUN cédula de identidad persona identificable",
+        "correo": "dato personal dirección de correo electrónico identificador",
+        "telefono": "dato personal número telefónico identificador",
+        "persona": "dato personal persona identificada o identificable",
+        "direccion": "dato personal domicilio dirección de una persona",
+        "salud": "dato personal sensible relativo a la salud",
+    }
+
     def __init__(self, embeddings):
         self.embeddings = embeddings
 
@@ -76,9 +101,21 @@ class RecuperadorPostgres:
             raise ValueError("encoder distinto al indice")
         textos = []
         for m in mensajes:
-            # RAG consulta el prompt original; las salidas de detectores no se
-            # interpolan ni modifican el texto que analiza el SLM.
+            # Mantener la consulta original completa (en segmentos si es larga).
             textos.extend(await self.embeddings.segmentos(m.content))
+        # Aportar contexto legislativo a partir de la categoría detectada, sin
+        # copiar valores sensibles ni offsets del hallazgo a los embeddings.
+        categorias = set()
+        for h in regex or []:
+            categoria = getattr(h, "categoria", None)
+            if categoria is None and isinstance(h, dict):
+                categoria = h.get("categoria")
+            categoria = getattr(categoria, "value", categoria)
+            if categoria in self._CONSULTAS_CATEGORIA:
+                categorias.add(categoria)
+        textos.extend(self._CONSULTAS_CATEGORIA[c] for c in sorted(categorias))
+        if not textos:
+            return []
         vectores = await self.embeddings.codificar(textos, "query")
         def buscar():
             candidatos = {}
@@ -114,7 +151,8 @@ async def ingerir(manifiesto: Path):
                                 metadata={k: v for k, v in f.items() if k != "texto"}))
     if not bloques or len({f["id"] for f in bloques}) != len(bloques):
         raise ValueError("corpus vacio o duplicado")
-    vectores = await emb.codificar([f["texto"] for f in bloques], "passage")
+    vectores = await codificar_en_lotes(
+        emb, [f["texto"] for f in bloques], "passage")
     version = hashlib.sha256(json.dumps({"datos": datos, "encoder": metadata}, sort_keys=True).encode()).hexdigest()
     sql = Path(__file__).with_name("rag_schema.sql").read_text(encoding="utf-8")
     def guardar():

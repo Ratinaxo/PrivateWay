@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ConfigDict
 from sentence_transformers import SentenceTransformer
+from readiness import revision_configurada
 
 model = None
 # Tokenizer y encode comparten internamente el tokenizer; excluir ambos con RLock
@@ -58,7 +59,7 @@ class Texto(BaseModel):
 def ready(authorization: str | None = Header(default=None)):
     autorizado(authorization)
     revision = os.environ.get("PRIVATEWAY_E5_REVISION")
-    if not revision or revision == "no-descargado":
+    if not revision_configurada(revision):
         raise HTTPException(503, "REVISION_EMBEDDINGS_NO_CONFIGURADA")
     return {"ready": model is not None, "modelo": MODELO_ID,
             "revision": revision, "dimension": model.get_sentence_embedding_dimension(),
