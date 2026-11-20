@@ -124,6 +124,14 @@ export function AuditDashboard({snapshot}: {snapshot: AuditSnapshot}) {
             {previewLoading && <p className="text-sm">Descifrando contenido…</p>}
             {previewError && <p role="alert" className="text-sm text-red-700">{previewError}</p>}
             {preview && <div className="space-y-5"><p className="text-sm text-stone-600">Usuario: <strong>{preview.usuario}</strong> · {preview.mensajes.length} mensajes en el contexto</p>
+              <article className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                <h3 className="text-sm font-semibold text-emerald-950">Justificación de la decisión</h3>
+                <p className="mt-2 text-sm">Acción aplicada: <strong>{preview.decision?.accion ?? "No disponible"}</strong></p>
+                {preview.justificacion ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{preview.justificacion}</p> :
+                  <p className="mt-2 text-sm text-stone-600">El registro no contiene una justificación textual del SLM.</p>}
+                {preview.decision?.codigo_motivo && <p className="mt-2 font-mono text-xs text-stone-600">Código técnico: {preview.decision.codigo_motivo}</p>}
+                <p className="mt-2 text-xs leading-5 text-amber-800">La justificación puede reflejar información del mensaje original. Se muestra solo en esta vista administrativa protegida.</p>
+              </article>
               {preview.mensajes.map((m) => <article key={m.indice} className="overflow-hidden rounded-xl border border-stone-200"><h3 className="border-b bg-stone-50 p-3 text-sm font-semibold">Mensaje {m.indice} · {m.role}</h3><div className="grid gap-3 p-3 md:grid-cols-2"><div><p className="mb-1 text-xs font-semibold text-stone-500">Antes (original)</p><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-amber-50 p-3 font-mono text-xs">{m.antes}</pre></div><div><p className="mb-1 text-xs font-semibold text-stone-500">Después (enviado al proveedor)</p><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-emerald-50 p-3 font-mono text-xs">{m.despues ?? "Bloqueado: no se generó versión de salida"}</pre></div></div></article>)}
               {preview.respuesta && <article className="overflow-hidden rounded-xl border border-stone-200"><h3 className="border-b bg-stone-50 p-3 text-sm font-semibold">Respuesta del adaptador</h3><div className="grid gap-3 p-3 md:grid-cols-2"><div><p className="mb-1 text-xs font-semibold">Antes del posprocesamiento</p><pre className="whitespace-pre-wrap break-all rounded-lg bg-amber-50 p-3 text-xs">{preview.respuesta.antes}</pre></div><div><p className="mb-1 text-xs font-semibold">Después del posprocesamiento</p><pre className="whitespace-pre-wrap break-all rounded-lg bg-emerald-50 p-3 text-xs">{preview.respuesta.despues}</pre></div></div></article>}
             </div>}

@@ -76,6 +76,8 @@ export interface AuditPreview {
   usuario: string
   mensajes: {indice: number; role: string; antes: string; despues: string | null}[]
   respuesta: {antes: string; despues: string} | null
+  decision?: {accion: string; codigo_motivo: string}
+  justificacion?: string | null
 }
 
 export async function getAuditPreview(evento: string, auditorId: string, auditorName: string): Promise<AuditPreview | null> {
@@ -110,5 +112,27 @@ export async function getAuditPreview(evento: string, auditorId: string, auditor
          !("despues" in value.respuesta) || typeof value.respuesta.despues !== "string"))) {
     throw new Error("AUDITORIA_RESPUESTA_INVALIDA")
   }
-  return value as AuditPreview
+  const registro = value as Record<string, unknown>
+  const analisis = registro.analisis && typeof registro.analisis === "object" && !Array.isArray(registro.analisis)
+    ? registro.analisis as Record<string, unknown> : undefined
+  const decisionRaw = registro.decision && typeof registro.decision === "object" && !Array.isArray(registro.decision)
+    ? registro.decision as Record<string, unknown> : undefined
+  const accion = decisionRaw?.accion ?? analisis?.accion_aplicada
+  const codigoMotivo = decisionRaw?.codigo_motivo
+  const decision = typeof accion === "string" && accion.length <= 32 &&
+    typeof codigoMotivo === "string" && codigoMotivo.length <= 64
+    ? {accion, codigo_motivo: codigoMotivo} : undefined
+  const explicacion = analisis?.explicacion && typeof analisis.explicacion === "object" && !Array.isArray(analisis.explicacion)
+    ? analisis.explicacion as Record<string, unknown> : undefined
+  const razon = registro.justificacion ?? analisis?.justificacion ?? explicacion?.texto
+  const justificacion = typeof razon === "string" && razon.length <= 400 ? razon : null
+  const respuesta = registro.respuesta as AuditPreview["respuesta"]
+  return {
+    evento: registro.evento as string,
+    usuario: registro.usuario as string,
+    mensajes: registro.mensajes as AuditPreview["mensajes"],
+    respuesta,
+    decision,
+    justificacion,
+  }
 }
