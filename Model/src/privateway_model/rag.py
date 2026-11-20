@@ -8,6 +8,8 @@ from pathlib import Path
 import httpx
 import psycopg
 
+_LOTE_EMBEDDINGS_INGESTA = 32
+
 
 def conexion():
     return psycopg.connect(host=os.environ["PRIVATEWAY_DB_HOST"],
@@ -22,6 +24,18 @@ def vector(v):
     if not 0.99 <= sum(float(x) ** 2 for x in v) <= 1.01:
         raise ValueError("vector no normalizado")
     return "[" + ",".join(str(float(x)) for x in v) + "]"
+
+
+async def codificar_en_lotes(embeddings, textos, tipo):
+    """Codifica pasajes en peticiones acotadas y conserva el orden de entrada."""
+    vectores = []
+    for inicio in range(0, len(textos), _LOTE_EMBEDDINGS_INGESTA):
+        lote = textos[inicio:inicio + _LOTE_EMBEDDINGS_INGESTA]
+        resultado = await embeddings.codificar(lote, tipo)
+        if not isinstance(resultado, (list, tuple)) or len(resultado) != len(lote):
+            raise ValueError("embeddings incompletos")
+        vectores.extend(resultado)
+    return vectores
 
 
 class EmbeddingsHTTP:
@@ -137,7 +151,8 @@ async def ingerir(manifiesto: Path):
                                 metadata={k: v for k, v in f.items() if k != "texto"}))
     if not bloques or len({f["id"] for f in bloques}) != len(bloques):
         raise ValueError("corpus vacio o duplicado")
-    vectores = await emb.codificar([f["texto"] for f in bloques], "passage")
+    vectores = await codificar_en_lotes(
+        emb, [f["texto"] for f in bloques], "passage")
     version = hashlib.sha256(json.dumps({"datos": datos, "encoder": metadata}, sort_keys=True).encode()).hexdigest()
     sql = Path(__file__).with_name("rag_schema.sql").read_text(encoding="utf-8")
     def guardar():
