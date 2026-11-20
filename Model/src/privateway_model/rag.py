@@ -52,6 +52,17 @@ class EmbeddingsHTTP:
 
 
 class RecuperadorPostgres:
+    # Las señales son intencionalmente categóricas. Nunca se incorpora el valor
+    # detectado por REGEX a una consulta adicional ni a la traza de recuperación.
+    _CONSULTAS_CATEGORIA = {
+        "run": "identificador personal RUN cédula de identidad persona identificable",
+        "correo": "dato personal dirección de correo electrónico identificador",
+        "telefono": "dato personal número telefónico identificador",
+        "persona": "dato personal persona identificada o identificable",
+        "direccion": "dato personal domicilio dirección de una persona",
+        "salud": "dato personal sensible relativo a la salud",
+    }
+
     def __init__(self, embeddings):
         self.embeddings = embeddings
 
@@ -76,9 +87,21 @@ class RecuperadorPostgres:
             raise ValueError("encoder distinto al indice")
         textos = []
         for m in mensajes:
-            # RAG consulta el prompt original; las salidas de detectores no se
-            # interpolan ni modifican el texto que analiza el SLM.
+            # Mantener la consulta original completa (en segmentos si es larga).
             textos.extend(await self.embeddings.segmentos(m.content))
+        # Aportar contexto legislativo a partir de la categoría detectada, sin
+        # copiar valores sensibles ni offsets del hallazgo a los embeddings.
+        categorias = set()
+        for h in regex or []:
+            categoria = getattr(h, "categoria", None)
+            if categoria is None and isinstance(h, dict):
+                categoria = h.get("categoria")
+            categoria = getattr(categoria, "value", categoria)
+            if categoria in self._CONSULTAS_CATEGORIA:
+                categorias.add(categoria)
+        textos.extend(self._CONSULTAS_CATEGORIA[c] for c in sorted(categorias))
+        if not textos:
+            return []
         vectores = await self.embeddings.codificar(textos, "query")
         def buscar():
             candidatos = {}

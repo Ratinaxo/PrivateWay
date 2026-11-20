@@ -179,9 +179,18 @@ class PipelineHibrido(PipelineRegex):
                 for mensaje in solicitud.messages
             ))
 
+        # La tesis propone que los hallazgos previos orienten la recuperación.
+        # Por eso REGEX debe terminar antes de pedir contexto a RAG.
+        resultados_regex, regex_ms = await medir(detectar_regex())
+        senales_rag = [
+            {"mensaje": i, "categoria": h.categoria.value}
+            for i, hallazgos in enumerate(resultados_regex)
+            for h in hallazgos
+        ]
+
         async def rama_slm_rag():
-            # RAG forma parte de la rama contextual; REGEX empieza a la vez.
-            (fragmentos, rag_ms) = await medir(self.recuperador.buscar(solicitud.messages, []))
+            (fragmentos, rag_ms) = await medir(
+                self.recuperador.buscar(solicitud.messages, senales_rag))
             if not fragmentos or len({f["id"] for f in fragmentos}) != len(fragmentos):
                 raise ValueError("sin evidencia")
             versiones = await self.recuperador.versiones()
@@ -202,11 +211,7 @@ class PipelineHibrido(PipelineRegex):
                 juicio = JuicioSLM.model_validate_json(resultado)
             return fragmentos, versiones, entrada, juicio, rag_ms, slm_ms
 
-        # Ambas ramas parten del prompt original: REGEX no espera ni consume
-        # la salida del SLM; la rama SLM espera únicamente su contexto RAG.
-        ((resultados_regex, regex_ms),
-         (fragmentos, versiones, entrada, juicio, rag_ms, slm_ms)) = await asyncio.gather(
-            medir(detectar_regex()), rama_slm_rag())
+        fragmentos, versiones, entrada, juicio, rag_ms, slm_ms = await rama_slm_rag()
         regex = []
         for i, hallazgos in enumerate(resultados_regex):
             for h in hallazgos:

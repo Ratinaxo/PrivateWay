@@ -21,10 +21,30 @@ async def evaluar(split: str, dataset: Path, salida: Path) -> None:
     for caso in casos:
         mensajes = [Mensaje(role="user", content=caso["consulta"])]
         esperado = caso["esperado"] + "_"
-        recuperados = await pipeline.recuperador.buscar(mensajes, [])
+        # Comparar consulta sola con consulta + categorías detectadas por REGEX.
+        # Solo se guardan categorías; nunca los valores detectados.
+        recuperados_sin_senales = await pipeline.recuperador.buscar(mensajes, [])
+        hallazgos_regex = pipeline._detectar(caso["consulta"])
+        senales = [{"mensaje": 0, "categoria": h.categoria.value}
+                   for h in hallazgos_regex]
+        recuperados = await pipeline.recuperador.buscar(mensajes, senales)
         ids = [f["id"] for f in recuperados]
+        rangos = [i + 1 for i, fid in enumerate(ids) if fid.startswith(esperado)]
+        rango_esperado = rangos[0] if rangos else None
+        ids_sin_senales = [f["id"] for f in recuperados_sin_senales]
+        rangos_sin_senales = [i + 1 for i, fid in enumerate(ids_sin_senales)
+                              if fid.startswith(esperado)]
+        rango_sin_senales = rangos_sin_senales[0] if rangos_sin_senales else None
         muestra = dict(id=caso["id"], esperado=caso["esperado"], recuperados=ids,
-                       recuperacion_correcta=any(i.startswith(esperado) for i in ids))
+                       categorias_regex=sorted({s["categoria"] for s in senales}),
+                       recuperados_sin_senales=ids_sin_senales,
+                       recuperacion_correcta=rango_esperado is not None,
+                       rango_esperado=rango_esperado,
+                       reciprocal_rank=(1 / rango_esperado if rango_esperado else 0.0),
+                       recuperacion_correcta_sin_senales=rango_sin_senales is not None,
+                       rango_esperado_sin_senales=rango_sin_senales,
+                       reciprocal_rank_sin_senales=(1 / rango_sin_senales
+                                                    if rango_sin_senales else 0.0))
         try:
             decision = await pipeline.analizar(
                 SolicitudChat(model="pw-simulado", messages=mensajes),
@@ -44,6 +64,16 @@ async def evaluar(split: str, dataset: Path, salida: Path) -> None:
     resumen = dict(split=split, protocolo=VERSION, versiones=await pipeline.recuperador.versiones(),
                    revision_modelo=pipeline.slm.revision, muestras=muestras,
                    recuperaciones_correctas=sum(m["recuperacion_correcta"] for m in muestras),
+                   recall_at_4=(sum(m["recuperacion_correcta"] for m in muestras) / len(muestras)
+                                if muestras else None),
+                   mrr_at_4=(sum(m["reciprocal_rank"] for m in muestras) / len(muestras)
+                             if muestras else None),
+                   recall_at_4_sin_senales=(
+                       sum(m["recuperacion_correcta_sin_senales"] for m in muestras) / len(muestras)
+                       if muestras else None),
+                   mrr_at_4_sin_senales=(
+                       sum(m["reciprocal_rank_sin_senales"] for m in muestras) / len(muestras)
+                       if muestras else None),
                    citas_esperadas=sum(m["cita_esperada"] is True for m in muestras),
                    juicios_evaluables=sum(m["error"] is None for m in muestras))
     with salida.open("x", encoding="utf-8") as archivo:
