@@ -177,9 +177,11 @@ def construir(directorio_fuentes: Path) -> dict:
             # reforma se identifica en metadatos como una capa normativa distinta.
             doc["etapa_normativa"] = "reforma_con_vigencia_diferida"
             texto_16bis = None
+            encabezado_16bis = None
             for (nivel, titulo, ruta), cuerpo, _ordinal in secciones(markdown):
                 if re.match(r"(?i)^art[ií]culo\s+16\s+bis", titulo):
                     texto_16bis = limpiar_markdown("\n".join(cuerpo))
+                    encabezado_16bis = titulo
                     locator_16bis = (
                         "Ley 19.628 art. 16 bis, incorporado por Ley 21.719 "
                         "art. primero numeral 8"
@@ -190,12 +192,12 @@ def construir(directorio_fuentes: Path) -> dict:
             fragmentos.append(dict(
                 id="art16bis", documento="ley21719",
                 tipo_fuente="legislacion_chilena", archivo=doc["nombre"],
-                localizador=locator_16bis, encabezado="Artículo 16 bis.-",
+                localizador=locator_16bis, encabezado=encabezado_16bis,
                 contexto="Ley 21.719 / artículo primero numeral 8",
                 version=doc["version"], vigencia_desde=doc["vigencia_desde"],
                 vigencia_hasta=doc["vigencia_hasta"], estado=doc["estado"],
                 etapa_normativa="reforma_con_vigencia_diferida",
-                texto=f"{locator_16bis}. Artículo 16 bis.- {texto_16bis}"))
+                texto=f"{locator_16bis}. {encabezado_16bis} {texto_16bis}"))
         else:
             markdown_generico = markdown
         for (nivel, titulo, ruta), cuerpo, ordinal in secciones(markdown_generico):
