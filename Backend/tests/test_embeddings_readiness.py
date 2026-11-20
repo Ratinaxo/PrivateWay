@@ -1,6 +1,16 @@
+import importlib.util
+from pathlib import Path
+
 import pytest
 
-from Model.embeddings.readiness import revision_configurada
+_RUTA_READINESS = (Path(__file__).resolve().parents[2] /
+                   "Model" / "embeddings" / "readiness.py")
+_SPEC = importlib.util.spec_from_file_location("privateway_embeddings_readiness", _RUTA_READINESS)
+if _SPEC is None or _SPEC.loader is None:
+    raise ImportError("No se pudo cargar la validación de readiness de embeddings")
+_MODULO = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_MODULO)
+revision_configurada = _MODULO.revision_configurada
 
 
 @pytest.mark.parametrize("revision", [None, "", "   ", "no-descargado", "pending-download"])
