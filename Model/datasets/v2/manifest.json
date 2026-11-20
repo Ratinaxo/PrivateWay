@@ -1,0 +1,73 @@
+{
+  "version": "privateway-synthetic-v2",
+  "seed": 20261116,
+  "generado_por": "Model/scripts/generate_benchmark_v2.py",
+  "nota": "Datos sintéticos deterministas, no derivados de registros de personas reales.",
+  "conjuntos": {
+    "desarrollo": {
+      "n": 600,
+      "familias": 60,
+      "acciones": {
+        "permitir": 150,
+        "seudonimizar": 300,
+        "bloquear": 150
+      },
+      "spans_por_categoria": {
+        "run": 150,
+        "correo": 150,
+        "telefono": 150,
+        "persona": 150,
+        "direccion": 150,
+        "salud": 150
+      },
+      "controles_sin_pii": 150
+    },
+    "validacion": {
+      "n": 1200,
+      "familias": 60,
+      "acciones": {
+        "permitir": 300,
+        "seudonimizar": 600,
+        "bloquear": 300
+      },
+      "spans_por_categoria": {
+        "run": 300,
+        "correo": 300,
+        "telefono": 300,
+        "persona": 300,
+        "direccion": 300,
+        "salud": 300
+      },
+      "controles_sin_pii": 300
+    },
+    "reto": {
+      "n": 200,
+      "familias": 10,
+      "acciones": {
+        "seudonimizar": 140,
+        "bloquear": 40,
+        "permitir": 20
+      },
+      "spans_por_categoria": {
+        "run": 20,
+        "correo": 60,
+        "telefono": 40,
+        "persona": 60,
+        "direccion": 40,
+        "salud": 40
+      },
+      "controles_sin_pii": 20
+    },
+    "recuperacion": {
+      "n": 24
+    }
+  },
+  "familias_separadas": true,
+  "policy": "salud bloquea; otros hallazgos seudonimizan; sin hallazgos permite",
+  "sha256": {
+    "desarrollo": "b09f60ec004d5cb6b862adf739775a16bcdf184ba03659ec1b6296a6f4bd0592",
+    "validacion": "ba0f7911657ad22b8472db09f69c773f95d9222853e38f028a57fac062b6541f",
+    "reto": "c4b649a77acaafa04ca1465993e3d8b28dcacc295e67b6737d2068a408778955",
+    "recuperacion": "e41c609b6d7954c8dbf04b641e22db1d3036a1d47b79eaefd4fe0b850c1b86ab"
+  }
+}

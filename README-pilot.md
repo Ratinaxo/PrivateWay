@@ -3,7 +3,9 @@
 El laboratorio usa Qwen2.5-3B-Instruct-AWQ en GPU, E5-large en CPU y PostgreSQL/pgvector.
 Un proxy de entrada publica el gateway en `127.0.0.1:8082`. Los demás servicios operan en una red Docker
 interna. Las descargas se hacen antes del arranque y los modelos se montan de solo lectura.
-Este laboratorio no transmite consultas a proveedores reales.
+No hay adaptador de chat simulado en runtime: configura un proveedor real y usa únicamente
+mensajes sintéticos cuando el gateway los transmita fuera del equipo. Sin rutas reales el
+gateway informa que no hay proveedor disponible.
 
 ## Preparación (PowerShell, desde la raíz)
 
@@ -12,20 +14,22 @@ Las imágenes y los modelos requieren varios GB de disco. No ejecutar `down -v`:
 eliminaría la base y las evidencias del piloto.
 
 ```powershell
-uv sync --project backend --dev
-backend/.venv/Scripts/python.exe scripts/setup_pilot.py
-backend/.venv/Scripts/python.exe scripts/download_models.py
-backend/.venv/Scripts/python.exe scripts/prepare_corpus.py
-backend/.venv/Scripts/python.exe scripts/generate_pilot_data.py
-docker compose --env-file .env.pilot -f compose.pilot.yaml build
-docker compose --env-file .env.pilot -f compose.pilot.yaml up -d slm embeddings postgres
-docker compose --env-file .env.pilot -f compose.pilot.yaml run --rm --no-deps backend python -m backend.gateway.rag /corpus/manifest.json
-docker compose --env-file .env.pilot -f compose.pilot.yaml up -d backend proxy
+uv sync --project Backend --dev
+Backend/.venv/Scripts/python.exe Model/scripts/setup_pilot.py
+Backend/.venv/Scripts/python.exe Model/scripts/download_models.py
+Backend/.venv/Scripts/python.exe Model/scripts/prepare_corpus.py
+Backend/.venv/Scripts/python.exe Model/scripts/generate_pilot_data.py
+docker compose --env-file .env --env-file .env.pilot -f compose.pilot.yaml build
+docker compose --env-file .env --env-file .env.pilot -f compose.pilot.yaml up -d slm embeddings postgres
+docker compose --env-file .env --env-file .env.pilot -f compose.pilot.yaml run --rm --no-deps backend python -m privateway_model.rag /corpus/manifest.json
+docker compose --env-file .env --env-file .env.pilot -f compose.pilot.yaml -f compose.lab.yaml up -d backend proxy
 curl.exe http://127.0.0.1:8082/ready
 ```
 
 `.env.pilot` contiene claves propias, ignoradas por Git. El script no cambia `.env`
-ni regenera claves existentes. `models.lock.json` conserva revisión de pesos y tokenizer,
+ni regenera claves existentes. Se pasan ambos archivos: `.env` aporta aliases, adaptadores y
+claves reales de proveedores; `.env.pilot`, al ir último, conserva tokens, modelo y contraseña
+de la base exclusiva del piloto. `models.lock.json` conserva revisión de pesos y tokenizer,
 licencias y hashes. Qwen 3B usa licencia `qwen-research`: este es un piloto académico.
 
 Si el arranque indica falta de memoria, reducir `PRIVATEWAY_SLM_CONTEXT` a 2048 en
@@ -35,13 +39,34 @@ Registrar cualquier cambio de memoria GPU/contexto antes de comparar ejecuciones
 
 La API conserva `/api/v1/secure-chat` y `/v1/chat/completions`; usar el token de gateway
 de `.env.pilot` mediante `Authorization: Bearer …`. No copiarlo en tickets, reportes o Git.
-El piloto no incluye frontend ni Keycloak duplicados: prueba la misma API del proyecto
-y permite conectar un BFF existente configurando `GATEWAY_INTERNAL_URL` y su token.
+Configura `GATEWAY_PROVIDERS_JSON` con un adaptador real y `GATEWAY_ROUTES_JSON` con los aliases
+que se mostrarán al BFF. Por ejemplo, reemplaza alias y modelo por los valores habilitados en
+tu cuenta; la clave real permanece en `.env` bajo `OPENAI_API_KEY`:
+
+```dotenv
+GATEWAY_PROVIDERS_JSON={"mi-openai":{"tipo":"openai","api_key_env":"OPENAI_API_KEY"}}
+GATEWAY_ROUTES_JSON={"mi-alias":{"proveedor":"mi-openai","modelo_externo":"<id-modelo>"}}
+```
+
+Para Anthropic o Gemini, usa `tipo` `anthropic` o `gemini` y `ANTHROPIC_API_KEY` o
+`GEMINI_API_KEY`. El piloto no incluye frontend ni Keycloak duplicados: prueba la misma API
+del proyecto y permite conectar un BFF existente configurando `GATEWAY_INTERNAL_URL` y su token.
+Para `compatible_chat`, define `base_url` HTTPS, autoriza el hostname exacto en
+`GATEWAY_ALLOWED_PROVIDER_HOSTS` y usa `PRIVATEWAY_COMPATIBLE_API_KEY` como `api_key_env`.
+Esta clave dedicada se inyecta al backend del piloto; no reutilices las claves nativas.
+
+```dotenv
+GATEWAY_PROVIDERS_JSON={"mi-compatible":{"tipo":"compatible_chat","base_url":"https://<host-autorizado>/v1","api_key_env":"PRIVATEWAY_COMPATIBLE_API_KEY"}}
+GATEWAY_ROUTES_JSON={"mi-alias":{"proveedor":"mi-compatible","modelo_externo":"<id-modelo-configurado>"}}
+GATEWAY_ALLOWED_PROVIDER_HOSTS=<host-autorizado>
+PRIVATEWAY_COMPATIBLE_API_KEY=
+```
 
 ## Prueba E2E desde la web local (Linux)
 
 Los overrides opcionales conectan el frontend autenticado del proyecto con el gateway
-híbrido del piloto. Keycloak y el proveedor simulado siguen siendo los de desarrollo;
+híbrido del piloto. Keycloak sigue siendo el del stack de desarrollo; el proveedor de chat
+debe estar configurado como adaptador real en `.env`;
 el frontend no comparte la red del SLM, embeddings ni PostgreSQL. El gateway conserva
 su propia base, auditoría y claves de cifrado. Usa únicamente mensajes sintéticos.
 
@@ -49,25 +74,25 @@ Genera una vez los tokens de puente locales; el archivo queda ignorado por Git y
 permisos `0600`:
 
 ```bash
-python3 scripts/prepare_web_pilot.py
+python3 Model/scripts/prepare_web_pilot.py
 ```
 
 Primero inicia los servicios y modelos del piloto como en la preparación anterior. Con
 el corpus ya ingestado, aplica el override del gateway y después el del frontend:
 
 ```bash
-docker compose --env-file .env.pilot -f compose.pilot.yaml up -d slm embeddings postgres
-docker compose --env-file .env.pilot -f compose.pilot.yaml run --rm --no-deps backend python -m backend.gateway.rag /corpus/manifest.json
-docker compose --env-file .env.pilot --env-file .env.web-pilot -f compose.pilot.yaml -f compose.pilot.web.yaml up -d --build backend proxy
+docker compose --env-file .env --env-file .env.pilot -f compose.pilot.yaml up -d slm embeddings postgres
+docker compose --env-file .env --env-file .env.pilot -f compose.pilot.yaml run --rm --no-deps backend python -m privateway_model.rag /corpus/manifest.json
+docker compose --env-file .env --env-file .env.pilot --env-file .env.web-pilot -f compose.pilot.yaml -f compose.lab.yaml -f compose.pilot.web.yaml up -d --build backend proxy
 docker compose --env-file .env --env-file .env.web-pilot -f compose.yaml -f compose.dev.yaml -f compose.web-pilot.yaml up -d --build frontend proxy
 curl http://127.0.0.1:8082/ready
 ```
 
-Abre `http://127.0.0.1:8080`, inicia sesión y selecciona el proveedor simulado y el
-modelo `pw-simulado`. El BFF apunta a `pilot-gateway:8000` por una red Docker dedicada;
+Abre `http://127.0.0.1:8080`, inicia sesión y selecciona un alias real configurado en el
+catálogo. El BFF apunta a `pilot-gateway:8000` por una red Docker dedicada;
 la autenticación de usuario no cambia. El historial se almacena cifrado en la base
-PostgreSQL exclusiva del piloto. La respuesta del proveedor es simulada: esta prueba
-recorre navegador, BFF, autenticación, gateway híbrido y persistencia, sin un LLM externo.
+PostgreSQL exclusiva del piloto. El gateway aplica el pipeline híbrido antes de llamar al
+proveedor real; usa únicamente mensajes sintéticos para esta prueba E2E.
 Conserva `.env.web-pilot`: su clave cifra el historial persistente y, si se pierde, las
 conversaciones existentes ya no se podrán descifrar.
 
@@ -86,7 +111,7 @@ la Ley 19.628 como texto base y se recuperan disposiciones reformadas desde el t
 oficial de la Ley 21.719: art. primero, definiciones 2 f/g/l, principios del art. 3 y
 art. 16 bis. Se conserva la versión real del XML y se identifica la vigencia diferida
 del escenario estudiado (2026-12-01). No se etiqueta la versión antigua como reformada.
-Los archivos originales están en `pilot/corpus/raw`, con hashes en el manifiesto.
+Los archivos originales están en `Model/corpus/raw`, con hashes en el manifiesto.
 
 La extracción conserva artículo/letra/inciso y el servicio E5 subdivide unidades que
 exceden 448 tokens, preservando el localizador. Los prefijos E5 y tokens especiales
@@ -115,30 +140,30 @@ semántica es limitada.
 ## Pruebas y mediciones
 
 ```powershell
-cd backend
+cd Backend
 uv run pytest -q
-cd ../frontend
+cd ../Frontend
 node --run test:contracts
 cd ..
-docker compose --env-file .env.pilot -f compose.pilot.yaml exec backend python -m backend.gateway.evaluate --modo hibrido --split desarrollo --concurrencia 1 --salida /pilot/results/hibrido-dev-c1.json
+docker compose --env-file .env --env-file .env.pilot -f compose.pilot.yaml exec backend python -m privateway_model.evaluate --datos /pilot/datasets/v1 --modo hibrido --split desarrollo --concurrencia 1 --salida /pilot/results/hibrido-dev-c1.json
 ```
 
 Repetir para `--modo regex`, `slm`, `hibrido` y concurrencias `1`, `5`, `10`.
 Para reproducir la batería inicial y capturar recursos del stack:
 
 ```powershell
-uv run python scripts/run_pilot.py --limite 10 --output-dir pilot/results/prueba
+uv run --project Backend python Model/scripts/run_pilot.py --limite 10 --output-dir Model/experimentos/resultados/prueba
 ```
 
 Para ejecutar la misma matriz de 12 configuraciones sobre el benchmark ampliado, usa
-`uv run python scripts/run_pilot.py --dataset v2`. La batería utiliza solo desarrollo,
-guarda archivos con prefijo `v2-` y crea un directorio fechado bajo `pilot/results/`;
+`uv run --project Backend python Model/scripts/run_pilot.py --dataset v2`. La batería utiliza solo desarrollo,
+guarda archivos con prefijo `v2-` y crea un directorio fechado bajo `Model/experimentos/resultados/`;
 `--limite N` conserva la opción de pantalla exploratoria. Se pueden aislar repeticiones y
-elegir un directorio vacío con `--repeticiones N --output-dir pilot/results/nombre-corrida`.
+elegir un directorio vacío con `--repeticiones N --output-dir Model/experimentos/resultados/nombre-corrida`.
 La exportación se guarda en ese mismo directorio, bajo `export/`, con `experimentos.csv`,
 `metricas_categoria.csv`, `casos.csv`, `recuperacion.csv` y `manifest.json`. También se puede
-regenerar para una carpeta concreta con `uv run python scripts/export_experiments.py
---resultados pilot/results/nombre-corrida --salida pilot/results/nombre-corrida/export`.
+regenerar para una carpeta concreta con `uv run --project Backend python Model/scripts/export_experiments.py
+--resultados Model/experimentos/resultados/nombre-corrida --salida Model/experimentos/resultados/nombre-corrida/export`.
 
 Los CSV contienen configuración, modelo/revisión, hashes del prompt y esquema, TP/FP/FN,
 precisión, recall, F1/F2 micro y macro, detección exacta y parcial, latencias p50/p95/p99,
@@ -152,7 +177,7 @@ El lanzador detiene la batería si alguno de los tres casos smoke falla; corrige
 antes de consumir tiempo GPU en las comparaciones.
 
 En Linux, si el usuario necesita `sudo` para acceder al daemon Docker, ejecuta la batería
-con `PRIVATEWAY_DOCKER_SUDO=1 uv run python scripts/run_pilot.py --limite 10`. El lanzador
+con `PRIVATEWAY_DOCKER_SUDO=1 uv run --project Backend python Model/scripts/run_pilot.py --limite 10`. El lanzador
 solicita la contraseña una vez y usa `sudo -n` solo para los comandos Docker; `uv` y Python
 siguen ejecutándose como el usuario actual. El smoke test no requiere acceso al daemon.
 
@@ -175,14 +200,10 @@ humana. El conjunto reservado no debe utilizarse para ajustar prompts; la ejecuc
 de tesis requiere un corpus independiente y protocolo cerrado. No se utiliza el conjunto
 reservado durante la puesta en marcha.
 
-La versión ampliada del benchmark está en [`pilot/datasets/v2/`](pilot/datasets/v2/README.md):
-600 casos de desarrollo, 1.200 de validación reservada y 200 de reto. La metodología,
-los tamaños de muestra y los criterios propuestos a partir del marco NIST están en
-[`pilot/ANEXO_EVALUACION_NIST.md`](pilot/ANEXO_EVALUACION_NIST.md).
-El cierre de resultados del pipeline, estado de prompts y plan de adaptación de datos
-externos está en [`pilot/CIERRE_RESULTADOS_PIPELINE.md`](pilot/CIERRE_RESULTADOS_PIPELINE.md).
-La comparación planificada de Qwen/E5, Qwen/BGE-M3, Qwen3.5/E5 y Qwen3.5/BGE-M3 está en
-[`pilot/MATRIZ_MODELOS.md`](pilot/MATRIZ_MODELOS.md); la validación reservada sigue protegida.
+La versión ampliada del benchmark está en [`Model/datasets/v2/`](Model/datasets/v2/README.md):
+600 casos de desarrollo, 1.200 de validación reservada y 200 de reto. La metodología y los
+comandos reproducibles están en [`README-experimentos.md`](README-experimentos.md); la
+validación reservada sigue protegida y no debe utilizarse para ajustar prompts, modelos o reglas.
 
 Para observar recursos durante una ejecución:
 
@@ -194,17 +215,18 @@ nvidia-smi --query-gpu=timestamp,memory.used,utilization.gpu --format=csv
 La justificación, los hallazgos y las referencias se guardan en vistas cifradas de auditoría;
 el JSONL contiene códigos de operación. Hay eventos de fallo de análisis sin contenido.
 `/health` mide liveness; `/ready` exige modelo, embeddings y corpus activo. Una caída
-no habilita el proveedor simulado ni un proveedor externo.
+no habilita el proveedor de chat ni llama a un proveedor externo.
 
 ## Límites de este hito
 
-No incluye cobertura de toda la taxonomía, ajuste supervisado, proveedor real ni evaluación
-final de utilidad. Los resultados locales no prueban
-cumplimiento legal ni ausencia de datos personales. Consultar `pilot/REPORT.md` para
+No incluye cobertura de toda la taxonomía, ajuste supervisado ni una integración de proveedor
+real ya verificada en este entorno. La configuración permite habilitar adaptadores reales;
+los resultados locales no prueban
+cumplimiento legal ni ausencia de datos personales. Consultar `README-experimentos.md` para
 el estado y las evidencias de la ejecución efectivamente realizada.
 
 Para detener el laboratorio y liberar la GPU conservando datos y evidencias:
 
 ```powershell
-docker compose --env-file .env.pilot -f compose.pilot.yaml stop
+docker compose --env-file .env --env-file .env.pilot -f compose.pilot.yaml stop
 ```

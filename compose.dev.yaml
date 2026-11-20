@@ -10,6 +10,6 @@ services:
     volumes:
       # Recarga de cambios en los componentes y rutas del frontend.
       # Si cambian package.json, lockfile o next.config.ts: reconstruir imagen.
-      - ./frontend/src:/app/src:ro
+      - ./Frontend/src:/app/src:ro
     healthcheck:
       start_period: 100s

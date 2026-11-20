@@ -10,7 +10,6 @@ Este documento explica la configuración del **laboratorio local** de PrivateWay
 
 - **`.env` (raíz del proyecto):** configuración privada de la máquina. Docker Compose la lee para sustituir expresiones `${VARIABLE}` en `compose.yaml` y `compose.dev.yaml`. No se debe subir al repositorio.
 - **`.env.example` (raíz):** plantilla que se versiona. Los valores vacíos de los secretos son placehoders: el script de python los rellena al ejecutarse por primera vez.
-- **`frontend/.env.example`:** referencia adicional de variables de servidor Next.js. **No sustituye** el `.env` raíz al ejecutar Docker Compose.
 - **`compose.yaml`:** inyecta las variables necesarias en los contenedores. Algunas URL e identificadores se fijan aquí y no requieren una entrada adicional en `.env`.
 - **Volumen `keycloak_db_data`:** almacena el estado de Keycloak (realm, cuentas, roles, credenciales y configuración). **No forma parte de `.env` ni de Git.**
 
@@ -25,32 +24,57 @@ Este documento explica la configuración del **laboratorio local** de PrivateWay
 | Variable | Tipo | Uso |
 |---|---|---|
 | `PRIVATEWAY_GATEWAY_TOKEN` | **Secreto obligatorio** | Token compartido **solo entre el BFF Next.js y FastAPI**. Compose lo inyecta como `GATEWAY_CLIENT_TOKEN` en frontend y `GATEWAY_CLIENT_TOKENS` en backend. Debe tener al menos 24 caracteres. |
-| `GATEWAY_ROUTES_JSON` | Obligatoria | JSON con alias visibles y correspondencia `{ "proveedor": ..., "modelo_externo": ... }`. |
-| `GATEWAY_PROVIDERS_JSON` | Obligatoria | JSON con los adaptadores disponibles; por defecto, el proveedor `simulado`. |
+| `GATEWAY_ROUTES_JSON` | Opcional al iniciar | JSON con aliases visibles y correspondencia `{ "proveedor": ..., "modelo_externo": ... }`. Vacío significa que no hay chat habilitado; la API responde explícitamente que no hay proveedor disponible. |
+| `GATEWAY_PROVIDERS_JSON` | Opcional al iniciar | JSON con adaptadores reales (`openai`, `anthropic`, `gemini` o `compatible_chat`). Vacío significa que no hay adaptadores disponibles. Los dobles simulados/espías se limitan a pruebas y evaluación local. |
 | `PRIVATEWAY_HTTP_PORT` | Opcional | Puerto de Nginx en `127.0.0.1`; normalmente `8080`. También se usa para los URI de retorno OIDC al inicializar Keycloak. |
 | `PRIVATEWAY_DEV_FRONTEND_PORT` | Opcional | Puerto directo de Next.js en modo desarrollo; normalmente `3000`. Para **probar el login**, usar el acceso por Nginx (`:8080`), coherente con `NEXTAUTH_URL`. |
-| `GATEWAY_ALLOWED_PROVIDER_HOSTS` | Opcional | Lista separada por comas de hosts autorizados para adaptadores `compatible_chat` HTTPS. Vacío si no se utilizan. |
+| `GATEWAY_ALLOWED_PROVIDER_HOSTS` | Opcional | Lista separada por comas de hosts (sin esquema ni puerto) autorizados para adaptadores `compatible_chat` HTTPS. Debe coincidir con el host de `base_url`. |
 | `OPENAI_API_KEY` | Secreto opcional | Clave de OpenAI; necesaria solo al configurar y probar ese proveedor. |
 | `ANTHROPIC_API_KEY` | Secreto opcional | Clave de Anthropic, si se utiliza su adaptador. |
 | `GEMINI_API_KEY` | Secreto opcional | Clave de Gemini, si se utiliza su adaptador. |
+| `PRIVATEWAY_COMPATIBLE_API_KEY` | Secreto opcional | Nombre exacto de la variable de clave dedicada para `compatible_chat`; `api_key_env` debe usar `PRIVATEWAY_COMPATIBLE_API_KEY`. No se aceptan otros nombres en ese namespace ni se reutilizan claves nativas. |
 | `PRIVATEWAY_DB_PASSWORD` | **Secreto obligatorio** | Contraseña de PostgreSQL de conversaciones, independiente de `KEYCLOAK_DB_PASSWORD`. No cambiarla después de inicializar el volumen sin actualizar el rol de PostgreSQL. |
 | `PRIVATEWAY_HISTORY_TOKEN` | **Secreto obligatorio** | Token BFF → gateway, exclusivamente para listar/guardar/eliminar conversaciones, diferente del de chat y auditoría. |
 | `PRIVATEWAY_CONVERSATION_KEY` | **Secreto obligatorio** | Clave Fernet para cifrar las conversaciones en PostgreSQL. Si se pierde, no se pueden recuperar los chats anteriores. |
 | `PRIVATEWAY_AUDIT_READ_TOKEN` | **Secreto obligatorio** | Token de lectura de auditoría para el BFF; distinto del token de chat e historial. |
 | `PRIVATEWAY_AUDIT_CONTENT_KEY` | **Secreto obligatorio** | Clave Fernet para guardar y recuperar las vistas sensibles «antes/después». Si se pierde, las vistas existentes no serán legibles. |
 
-Configuración predeterminada sin proveedores externos:
+Configuración inicial sin proveedores externos ni aliases:
 
 ```dotenv
-GATEWAY_ROUTES_JSON={"pw-simulado":{"proveedor":"simulado","modelo_externo":"modelo-demo"}}
-GATEWAY_PROVIDERS_JSON={"simulado":{"tipo":"simulado"}}
+GATEWAY_ROUTES_JSON={}
+GATEWAY_PROVIDERS_JSON={}
 GATEWAY_ALLOWED_PROVIDER_HOSTS=
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 GEMINI_API_KEY=
 ```
 
-No se debe incluir información sensible en los nombres de alias ni introducir contraseñas dentro del JSON: los adaptadores externos obtienen las claves desde las variables `*_API_KEY`.
+Para habilitar el chat, declara un adaptador y una ruta en `.env`. El valor `proveedor` de
+cualquier ruta debe coincidir con una clave de `GATEWAY_PROVIDERS_JSON`; `modelo_externo` es
+el identificador habilitado por la cuenta del proveedor. Por ejemplo, sustituye los
+placeholders y guarda la clave real únicamente en la variable nombrada por `api_key_env`:
+
+```dotenv
+GATEWAY_PROVIDERS_JSON={"mi-openai":{"tipo":"openai","api_key_env":"OPENAI_API_KEY"}}
+GATEWAY_ROUTES_JSON={"mi-alias":{"proveedor":"mi-openai","modelo_externo":"<id-modelo-configurado>"}}
+OPENAI_API_KEY=
+```
+
+Para Anthropic o Gemini cambia `tipo` y `api_key_env` por `anthropic`/`ANTHROPIC_API_KEY` o
+`gemini`/`GEMINI_API_KEY`. Para un servicio OpenAI-compatible, usa HTTPS, un host exacto en
+`GATEWAY_ALLOWED_PROVIDER_HOSTS` y una clave dedicada:
+
+```dotenv
+GATEWAY_PROVIDERS_JSON={"mi-compatible":{"tipo":"compatible_chat","base_url":"https://<host-autorizado>/v1","api_key_env":"PRIVATEWAY_COMPATIBLE_API_KEY"}}
+GATEWAY_ROUTES_JSON={"mi-alias":{"proveedor":"mi-compatible","modelo_externo":"<id-modelo-configurado>"}}
+GATEWAY_ALLOWED_PROVIDER_HOSTS=<host-autorizado>
+PRIVATEWAY_COMPATIBLE_API_KEY=
+```
+
+Puedes definir varios adaptadores y aliases en los dos JSON. No incluyas claves ni
+identificadores sensibles en el catálogo. El runtime normal no ofrece un proveedor simulado:
+sin una ruta real habilitada la API responde con un error explícito.
 
 ## 3. Variables de autenticación y Keycloak (La mayoría se generan con el script de python)
 
@@ -122,7 +146,7 @@ Copiar el resultado **solo a** `PRIVATEWAY_GATEWAY_TOKEN=` dentro del archivo `.
 Después, generar automáticamente los seis secretos de autenticación vacíos:
 
 ```fish
-python3 configurar-keycloak.py
+python3 Servidor/configurar-entorno.py
 ```
 
 El script rellena **únicamente las variables de autenticación que falten o estén vacías**, agrega los nombres de administrador cuando faltan y mantiene los demás valores. No genera `PRIVATEWAY_GATEWAY_TOKEN` ni `PRIVATEWAY_DB_PASSWORD`. También restringe `.env` a permisos `0600`. Como el script modifica valores de Linux, puede que tengas que adaptarlo para Windows.
@@ -164,11 +188,11 @@ http://auth.privateway.test:8081/realms/privateway
 
 ## 5. Qué se comparte y qué no se replica con Git
 
-**Versionar:** código `backend/` y `frontend/`, `compose.yaml`, `compose.dev.yaml`, `deployment/keycloak/bootstrap.sh`, `deployment/nginx/local.conf`, `scripts/configurar-keycloak.py`, `.env.example`, `readme-env.md`, pruebas y archivos de dependencias bloqueadas.
+**Versionar:** código `Backend/`, `Frontend/`, `Model/src/` y `Servidor/`; Compose, `.env.example`, pruebas y archivos de dependencias bloqueadas. Los modelos descargados y resultados locales quedan fuera de Git.
 
 **No versionar:** `.env` reales (incluidos los de subdirectorios), credenciales, tokens, claves privadas, bases de datos, archivos de auditoría, backups con secretos, volúmenes Docker, `node_modules/`, `.next/`, entornos Python virtuales ni respaldos locales de carpetas.
 
-El script `deployment/keycloak/bootstrap.sh` crea el realm `privateway`, los roles `privateway-user` y `privateway-admin`, los clientes OIDC y `pwadmin` **si todavía no existen**. Las cuentas adicionales que se hayan creado durante la instalación **no estarán** en la del resto de desarrolladores: viven en PostgreSQL de Keycloak, dentro del volumen Docker `keycloak_db_data`.
+El script `Servidor/keycloak/bootstrap.sh` crea el realm `privateway`, los roles `privateway-user` y `privateway-admin`, los clientes OIDC y `pwadmin` **si todavía no existen**. Las cuentas adicionales que se hayan creado durante la instalación **no estarán** en la del resto de desarrolladores: viven en PostgreSQL de Keycloak, dentro del volumen Docker `keycloak_db_data`.
 
 Si ente desarrolladores necesitan el **mismo entorno de cuentas**, eso requiere una estrategia separada (por ejemplo, servidor de identidad compartido o copia/restauración controlada), nunca subir el volumen o la base de datos a Git.
 
@@ -202,7 +226,7 @@ Revisar antes de publicar:
 
 ```fish
 git status --short
-git ls-files .env frontend/.env
+git ls-files .env Frontend/.env
 # Si alguna ruta aparece aquí, el secreto ya está bajo seguimiento y debe retirarse del índice.
 git diff --cached --name-only
 git diff --cached --check

@@ -1,0 +1,20 @@
+{
+  "version": "privateway-synthetic-v1",
+  "nota": "Datos sintéticos deterministas; no derivados de registros de personas reales.",
+  "conjuntos": {
+    "desarrollo": {
+      "n": 60
+    },
+    "validacion": {
+      "n": 60
+    },
+    "recuperacion": {
+      "n": 24
+    }
+  },
+  "sha256": {
+    "desarrollo": "927d14ce0f4481479ee0b667405d31841ec1b7e9785a0dd82cb6f88cc9c96933",
+    "validacion": "6657c252a0fbb43d72c009c4221167bd44d243c5a9e6b9808fbbe94ea5fb7df6",
+    "recuperacion": "e41c609b6d7954c8dbf04b641e22db1d3036a1d47b79eaefd4fe0b850c1b86ab"
+  }
+}

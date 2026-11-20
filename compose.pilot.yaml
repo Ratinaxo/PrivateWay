@@ -4,7 +4,7 @@ services:
   proxy:
     image: nginx:stable-alpine@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a
     ports: [127.0.0.1:8082:80]
-    volumes: [./pilot/nginx.conf:/etc/nginx/conf.d/default.conf:ro]
+    volumes: [./Servidor/nginx/pilot.conf:/etc/nginx/conf.d/default.conf:ro]
     networks: [ingress, local]
     depends_on: [backend]
   slm:
@@ -12,7 +12,7 @@ services:
     gpus: all
     shm_size: 1gb
     environment:
-      VLLM_API_KEY: ${PRIVATEWAY_SLM_TOKEN:?Ejecutar scripts/setup_pilot.py}
+      VLLM_API_KEY: ${PRIVATEWAY_SLM_TOKEN:?Ejecutar Model/scripts/setup_pilot.py}
       HF_HUB_OFFLINE: '1'
       VLLM_NO_USAGE_STATS: '1'
       DO_NOT_TRACK: '1'
@@ -30,7 +30,7 @@ services:
       - --disable-log-requests
       - --disable-log-stats
     volumes:
-      - ./pilot/models:/models:ro
+      - ./Model/models:/models:ro
     networks: [local]
     healthcheck:
       test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"]
@@ -39,7 +39,7 @@ services:
       retries: 30
       start_period: 120s
   embeddings:
-    build: ./services/embeddings
+    build: ./Model/embeddings
     environment:
       PRIVATEWAY_EMBEDDINGS_TOKEN: ${PRIVATEWAY_EMBEDDINGS_TOKEN:?Ejecutar setup}
       PRIVATEWAY_E5_REVISION: ${PRIVATEWAY_E5_REVISION:?Descargar modelos}
@@ -47,7 +47,7 @@ services:
       EMBEDDINGS_MODEL: ${PRIVATEWAY_EMBEDDINGS_MODEL:-/models/e5}
       EMBEDDINGS_MODEL_ID: ${PRIVATEWAY_EMBEDDINGS_MODEL_ID:-intfloat/multilingual-e5-large}
       EMBEDDINGS_KIND: ${PRIVATEWAY_EMBEDDINGS_KIND:-e5}
-    volumes: [./pilot/models:/models:ro]
+    volumes: [./Model/models:/models:ro]
     networks: [local]
     healthcheck:
       test: [CMD, python, -c, "import os,urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8001/ready',headers={'Authorization':'Bearer '+os.environ['PRIVATEWAY_EMBEDDINGS_TOKEN']}),timeout=5)"]
@@ -69,7 +69,9 @@ services:
       timeout: 5s
       retries: 10
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
     environment:
       PRIVATEWAY_PIPELINE: hibrido
       PRIVATEWAY_SLM_URL: http://slm:8000
@@ -84,18 +86,24 @@ services:
       PRIVATEWAY_CONVERSATION_KEY: ${PRIVATEWAY_CONVERSATION_KEY:-}
       GATEWAY_HISTORY_TOKEN: ${GATEWAY_HISTORY_TOKEN:-}
       GATEWAY_CLIENT_TOKENS: ${PRIVATEWAY_GATEWAY_TOKEN}
-      GATEWAY_ROUTES_JSON: '{"pw-simulado":{"proveedor":"simulado","modelo_externo":"modelo-demo"}}'
-      GATEWAY_PROVIDERS_JSON: '{"simulado":{"tipo":"simulado"}}'
+      GATEWAY_ROUTES_JSON: ${GATEWAY_ROUTES_JSON:-}
+      GATEWAY_PROVIDERS_JSON: ${GATEWAY_PROVIDERS_JSON:-}
+      GATEWAY_ALLOWED_PROVIDER_HOSTS: ${GATEWAY_ALLOWED_PROVIDER_HOSTS:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PRIVATEWAY_COMPATIBLE_API_KEY: ${PRIVATEWAY_COMPATIBLE_API_KEY:-}
       GATEWAY_AUDIT_FILE: /var/lib/privateway/audit/events.jsonl
       GATEWAY_AUDIT_CONTENT_KEY: ${PRIVATEWAY_AUDIT_CONTENT_KEY}
       GATEWAY_AUDIT_CONTENT_DIR: /var/lib/privateway/audit/previews
     volumes:
       - pilot_audit:/var/lib/privateway/audit
-      - ./backend/src:/app/src:ro
-      - ./pilot/corpus:/corpus:ro
-      - ./pilot/datasets:/pilot/datasets:ro
-      - ./pilot/models.lock.json:/pilot/models.lock.json:ro
-      - ./pilot/results:/pilot/results
+      - ./Backend/src:/app/Backend/src:ro
+      - ./Model/src:/app/Model/src:ro
+      - ./Model/corpus:/corpus:ro
+      - ./Model/datasets:/pilot/datasets:ro
+      - ./Model/models.lock.json:/pilot/models.lock.json:ro
+      - ./Model/experimentos/resultados:/pilot/results
     networks:
       local: {}
       web:
@@ -109,7 +117,7 @@ services:
     profiles: [prepare]
     working_dir: /work
     volumes: [./:/work]
-    command: [python, scripts/download_models.py]
+    command: [python, Model/scripts/download_models.py]
     networks: [download]
 networks:
   ingress: {}
