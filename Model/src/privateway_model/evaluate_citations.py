@@ -2,12 +2,53 @@
 import argparse
 import asyncio
 import json
+import re
 from pathlib import Path
 
 from backend.gateway.contracts import Mensaje, SolicitudChat
 from privateway_model.hybrid import desde_entorno
 from backend.gateway.pipeline import AnalisisNoDisponible, ContextoEjecucion
 from privateway_model.slm_protocol import VERSION
+
+
+def _normalizar_identificador(valor):
+    if not isinstance(valor, str):
+        return ""
+    return re.sub(r"[^a-z0-9]+", "_", valor.casefold()).strip("_")
+
+
+def _fragmento_corresponde(fragmento, esperado):
+    """Resuelve unidades por metadata normativa y soporta IDs legacy por prefijo."""
+    objetivo = _normalizar_identificador(esperado)
+    identificadores = (fragmento.get("identificador_normativo"), fragmento.get("id"))
+    for identificador in identificadores:
+        normalizado = _normalizar_identificador(identificador)
+        if normalizado and re.search(rf"(?:^|_){re.escape(objetivo)}(?:_|$)", normalizado):
+            return True
+    return False
+
+
+def _rango_esperado(fragmentos, esperado):
+    for rango, fragmento in enumerate(fragmentos, 1):
+        if _fragmento_corresponde(fragmento, esperado):
+            return rango
+    return None
+
+
+def _resumen_fragmento(fragmento):
+    campos = ("id", "identificador_normativo", "documento", "localizador", "version",
+              "estado", "vigencia_desde")
+    return {campo: fragmento[campo] for campo in campos if campo in fragmento}
+
+
+def _resolver_cita(cita, fragmentos):
+    referencia = _normalizar_identificador(cita)
+    for fragmento in fragmentos:
+        candidatos = (fragmento.get("id"), fragmento.get("identificador_normativo"))
+        if any(referencia and referencia == _normalizar_identificador(candidato)
+               for candidato in candidatos):
+            return fragmento
+    return None
 
 
 async def evaluar(split: str, dataset: Path, salida: Path) -> None:
@@ -20,7 +61,6 @@ async def evaluar(split: str, dataset: Path, salida: Path) -> None:
     muestras = []
     for caso in casos:
         mensajes = [Mensaje(role="user", content=caso["consulta"])]
-        esperado = caso["esperado"] + "_"
         # Comparar consulta sola con consulta + categorías detectadas por REGEX.
         # Solo se guardan categorías; nunca los valores detectados.
         recuperados_sin_senales = await pipeline.recuperador.buscar(mensajes, [])
@@ -28,16 +68,13 @@ async def evaluar(split: str, dataset: Path, salida: Path) -> None:
         senales = [{"mensaje": 0, "categoria": h.categoria.value}
                    for h in hallazgos_regex]
         recuperados = await pipeline.recuperador.buscar(mensajes, senales)
-        ids = [f["id"] for f in recuperados]
-        rangos = [i + 1 for i, fid in enumerate(ids) if fid.startswith(esperado)]
-        rango_esperado = rangos[0] if rangos else None
-        ids_sin_senales = [f["id"] for f in recuperados_sin_senales]
-        rangos_sin_senales = [i + 1 for i, fid in enumerate(ids_sin_senales)
-                              if fid.startswith(esperado)]
-        rango_sin_senales = rangos_sin_senales[0] if rangos_sin_senales else None
-        muestra = dict(id=caso["id"], esperado=caso["esperado"], recuperados=ids,
+        rango_esperado = _rango_esperado(recuperados, caso["esperado"])
+        rango_sin_senales = _rango_esperado(recuperados_sin_senales, caso["esperado"])
+        muestra = dict(id=caso["id"], esperado=caso["esperado"],
+                       fragmentos_recuperados=[_resumen_fragmento(f) for f in recuperados],
                        categorias_regex=sorted({s["categoria"] for s in senales}),
-                       recuperados_sin_senales=ids_sin_senales,
+                       fragmentos_recuperados_sin_senales=[
+                           _resumen_fragmento(f) for f in recuperados_sin_senales],
                        recuperacion_correcta=rango_esperado is not None,
                        rango_esperado=rango_esperado,
                        reciprocal_rank=(1 / rango_esperado if rango_esperado else 0.0),
@@ -55,10 +92,16 @@ async def evaluar(split: str, dataset: Path, salida: Path) -> None:
         else:
             traza = decision.traza
             citados = traza["referencias"]
-            contexto = [f["id"] for f in traza["fragmentos"]]
-            muestra.update(error=None, citados=citados, contexto_del_juicio=contexto,
-                           esperado_en_contexto=any(i.startswith(esperado) for i in contexto),
-                           cita_esperada=any(i.startswith(esperado) for i in citados),
+            contexto = traza["fragmentos"]
+            citas_resueltas = [_resolver_cita(cita, contexto) for cita in citados]
+            muestra.update(error=None, citados=citados,
+                           contexto_del_juicio=[_resumen_fragmento(f) for f in contexto],
+                           esperado_en_contexto=_rango_esperado(contexto, caso["esperado"]) is not None,
+                           citas_resueltas=[_resumen_fragmento(f) for f in citas_resueltas if f],
+                           referencias_resueltas=len([f for f in citas_resueltas if f]),
+                           cita_esperada=any(
+                               f is not None and _fragmento_corresponde(f, caso["esperado"])
+                               for f in citas_resueltas),
                            justificacion=traza["justificacion"])
         muestras.append(muestra)
     resumen = dict(split=split, protocolo=VERSION, versiones=await pipeline.recuperador.versiones(),
