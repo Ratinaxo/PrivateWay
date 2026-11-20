@@ -17,6 +17,13 @@ uv run --project Backend python Model/scripts/download_models.py
 uv run --project Backend python Model/scripts/prepare_corpus.py
 ```
 
+La preparación del corpus lee localmente `docs/Ley-19628.md` y `docs/Ley-21719.md`; no
+descarga fuentes durante este paso. Produce `Model/corpus/manifest.json`, con fragmentos
+organizados por disposición y encabezados Markdown, y metadatos de fuente, versión y vigencia.
+La Ley 19.628 se marca vigente hasta el 30 de noviembre de 2026 y la reforma 21.719 con
+vigencia diferida desde el 1 de diciembre de 2026, según los encabezados de esos documentos.
+Si se actualizan los Markdown, vuelve a ejecutar el preparador antes de ingerir el índice.
+
 Los pesos quedan en `Model/models/`, montados de solo lectura. El modelo de inferencia es
 Qwen2.5-3B-Instruct-AWQ y E5-large genera embeddings. La descarga se realiza durante la
 preparación; en ejecución, vLLM usa los archivos locales sin consultar el repositorio de
@@ -45,6 +52,10 @@ docker compose --env-file .env --env-file .env.model \
   -f compose.yaml -f compose.dev.yaml -f compose.hybrid.yaml \
   run --rm --no-deps backend python -m privateway_model.rag /corpus/manifest.json
 ```
+
+El índice vectorial usa PostgreSQL con pgvector del stack principal; no requiere un servicio
+vectorial adicional. Los fragmentos conservan identificadores y localizadores para que el SLM
+pueda fundamentar decisiones y la bitácora las vincule a las fuentes recuperadas.
 
 El catálogo de chat y sus proveedores se configuran en `.env`. Al usar proveedores externos,
 prueba solo con mensajes sintéticos. Las evaluaciones de detección y flujo usan el proveedor
