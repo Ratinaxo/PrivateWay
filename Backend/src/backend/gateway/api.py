@@ -45,6 +45,20 @@ def motivo_analisis_seguro(motivo: object) -> str:
     return "ANALISIS_NO_DISPONIBLE"
 
 
+def justificacion_auditoria(traza: object) -> str | None:
+    if not isinstance(traza, dict):
+        return None
+    justificacion = traza.get("justificacion")
+    if not isinstance(justificacion, str) or not justificacion.strip():
+        explicacion = traza.get("explicacion")
+        justificacion = explicacion.get("texto") if isinstance(explicacion, dict) else None
+    if isinstance(justificacion, str):
+        justificacion = justificacion.strip()
+        if 0 < len(justificacion) <= 400:
+            return justificacion
+    return None
+
+
 def error(codigo: str, estado: int, evento: str | None = None) -> JSONResponse:
     mensajes = {
         "NO_AUTORIZADO": "Credencial del gateway ausente o inválida.",
@@ -367,6 +381,13 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None, 
         vista_preparada = {
             "evento": evento,
             "usuario": usuario,
+            "decision": {
+                "accion": decision.accion.value,
+                "codigo_motivo": decision.codigo_motivo,
+            },
+            # El fundamento en lenguaje natural puede repetir contenido del
+            # prompt; se conserva solo en la vista cifrada, nunca en el JSONL.
+            "justificacion": justificacion_auditoria(decision.traza),
             "mensajes": [
                 {"indice": i + 1, "role": m.role,
                  "antes": m.content,

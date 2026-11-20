@@ -7,10 +7,12 @@ Next.js 16 + React 19 + NextAuth (OIDC de Keycloak). Este frontend **no** maneja
 - `/`: chat, catálogo y conversaciones persistentes por sujeto OIDC.
 - `/login`: autenticación.
 - `/admin`: administración de usuarios por rol `privateway-admin`.
-- `/admin/auditoria`: bitácora con columna de usuario y previsualización de contenido original y seudonimizado para administradores.
+- `/admin/auditoria`: bitácora con columna de usuario y previsualización administrativa de la acción, la justificación SLM y el contenido original/seudonimizado o bloqueado.
 - `GET /api/privateway/conversations` y `PUT|DELETE /api/privateway/conversations/[id]`: historial a través del gateway interno, sin exponer el token de almacenamiento ni aceptar un identificador de usuario suministrado desde el navegador.
 
 La interfaz envía un contexto deslizante de los últimos **29 mensajes** más el nuevo al gateway. El historial, protegido mediante una clave de cifrado en el backend, se recupera de PostgreSQL después de recargar. Cuando no está disponible el servicio, se muestra un error y no se simula persistencia local.
+
+La justificación y los mensajes se muestran únicamente al abrir el detalle protegido de auditoría. El gateway los conserva cifrados por separado; el BFF proyecta la decisión y su justificación sin reenviar la traza completa del análisis al navegador. Cada lectura de una previsualización queda registrada.
 
 ## Ejecución
 

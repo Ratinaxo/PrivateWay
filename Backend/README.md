@@ -17,5 +17,11 @@ El servicio se construye con `Backend/Dockerfile` usando la raíz como contexto 
 los paquetes `Backend/src` y `Model/src`. El flujo local normal utiliza REGEX; el override
 `compose.hybrid.yaml` habilita SLM y RAG.
 
+La auditoría conserva la acción y un código de motivo en los metadatos verificables. La
+justificación en lenguaje natural y la traza del análisis, que pueden reflejar contenido del
+prompt, se guardan solo en la previsualización cifrada y separada del JSONL. El BFF de
+administración muestra la decisión y la justificación al abrir el detalle; cada lectura queda
+registrada y las previsualizaciones tienen retención limitada.
+
 Consulta [README-env.md](../README-env.md) para configurar el entorno y
 [README-experimentos.md](../README-experimentos.md) para reproducir las evaluaciones.
