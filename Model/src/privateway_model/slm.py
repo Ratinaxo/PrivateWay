@@ -11,12 +11,11 @@ class ClienteVLLM:
         self.token = token or os.environ["PRIVATEWAY_SLM_TOKEN"]
         self.modelo = modelo or os.environ.get("PRIVATEWAY_SLM_MODEL", "privateway-slm")
         self.contexto = contexto or int(os.environ.get("PRIVATEWAY_SLM_CONTEXT", "4096"))
-        self.tipo_modelo = os.environ.get("PRIVATEWAY_SLM_MODEL_KIND", "qwen")
-        lock = Path(os.environ.get("PRIVATEWAY_MODELS_LOCK", "/pilot/models.lock.json"))
+        lock = Path(os.environ.get("PRIVATEWAY_MODELS_LOCK", "/model/models.lock.json"))
         self.revision = "no_registrada"
         if lock.exists():
             self.revision = next(m["revision"] for m in json.loads(lock.read_text())
-                                 if m["carpeta"] == self.tipo_modelo)
+                                 if m["carpeta"] == "qwen")
 
     def cliente(self):
         return httpx.AsyncClient(base_url=self.url, timeout=120, trust_env=False,

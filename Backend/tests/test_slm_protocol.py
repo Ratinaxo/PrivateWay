@@ -71,7 +71,7 @@ def test_accion_determinista_y_fuentes_solo_al_fundamento():
             if len(self.llamadas) == 1:
                 return wire([entidad("Ana Torres")])
             return json.dumps({"referencias":["art2"],
-                               "justificacion":"La política técnica del piloto se aplica al hallazgo."})
+                               "justificacion":"La política técnica del flujo principal se aplica al hallazgo."})
     c = Cliente()
     entrada = dict(mensajes=[dict(indice=0,texto="Ana Torres")],regex=[],fragmentos=[dict(id="art2",texto="Ley sobre salud.")])
     salida = json.loads(asyncio.run(analizar(c,entrada)))
@@ -102,7 +102,7 @@ def test_extraccion_y_fundamento_separados_con_accion_local():
             self.llamadas.append(datos)
             if len(self.llamadas) == 1:
                 return wire([entidad("Ana Torres")])
-            return json.dumps({"referencias":["art2"],"justificacion":"Dato personal; criterio técnico del piloto."})
+            return json.dumps({"referencias":["art2"],"justificacion":"Dato personal; criterio técnico del flujo principal."})
     c=Cliente()
     r=json.loads(asyncio.run(analizar(c,dict(mensajes=[dict(indice=0,texto="Ana Torres")],regex=[],
                                               fragmentos=[dict(id="art2",texto="Definición legal")]))))

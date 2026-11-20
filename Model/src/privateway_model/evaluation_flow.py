@@ -28,7 +28,7 @@ class BancoFlujo:
         app = create_app(config=Configuracion(tokens_cliente=(self.token,),
             rutas={"pw-simulado":RutaModelo("simulado","demo")}), pipeline=Captura(),
             auditoria=AuditoriaArchivo(archivo), adaptadores={"simulado":Espia()})
-        self.client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://piloto")
+        self.client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://privateway-local")
 
     async def ejecutar(self, solicitud):
         r = await self.client.post("/api/v1/secure-chat", json=solicitud.model_dump(),

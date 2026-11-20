@@ -1,4 +1,4 @@
-"""Métricas reproducibles de detección y exposición del piloto."""
+"""Métricas reproducibles de detección y exposición de PrivateWay."""
 from __future__ import annotations
 
 import re

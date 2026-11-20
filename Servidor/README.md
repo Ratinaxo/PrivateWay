@@ -3,7 +3,6 @@
 Configuración local de infraestructura que acompaña al backend y frontend:
 
 - `nginx/local.conf`: proxy inverso del flujo principal.
-- `nginx/pilot.conf`: proxy de entrada del laboratorio aislado.
 - `keycloak/bootstrap.sh`: inicialización idempotente de realm y clientes OIDC.
 - `configurar-entorno.py`: preparación local de variables de entorno.
 

@@ -7,7 +7,7 @@ services:
     gpus: all
     shm_size: 1gb
     environment:
-      VLLM_API_KEY: ${PRIVATEWAY_SLM_TOKEN:?Preparar .env.pilot}
+      VLLM_API_KEY: ${PRIVATEWAY_SLM_TOKEN:?Preparar .env.model}
       HF_HUB_OFFLINE: '1'
       VLLM_NO_USAGE_STATS: '1'
       DO_NOT_TRACK: '1'
@@ -38,8 +38,8 @@ services:
   embeddings:
     build: ./Model/embeddings
     environment:
-      PRIVATEWAY_EMBEDDINGS_TOKEN: ${PRIVATEWAY_EMBEDDINGS_TOKEN:?Preparar .env.pilot}
-      PRIVATEWAY_E5_REVISION: ${PRIVATEWAY_E5_REVISION:?Descargar los modelos del piloto}
+      PRIVATEWAY_EMBEDDINGS_TOKEN: ${PRIVATEWAY_EMBEDDINGS_TOKEN:?Preparar .env.model}
+      PRIVATEWAY_E5_REVISION: ${PRIVATEWAY_E5_REVISION:?Descargar los modelos}
       EMBEDDINGS_MODEL: ${PRIVATEWAY_EMBEDDINGS_MODEL:-/models/e5}
       EMBEDDINGS_MODEL_ID: ${PRIVATEWAY_EMBEDDINGS_MODEL_ID:-intfloat/multilingual-e5-large}
       EMBEDDINGS_KIND: ${PRIVATEWAY_EMBEDDINGS_KIND:-e5}
@@ -58,16 +58,17 @@ services:
     environment:
       PRIVATEWAY_PIPELINE: hibrido
       PRIVATEWAY_SLM_URL: http://vllm:8000
-      PRIVATEWAY_SLM_TOKEN: ${PRIVATEWAY_SLM_TOKEN:?Preparar .env.pilot}
+      PRIVATEWAY_SLM_TOKEN: ${PRIVATEWAY_SLM_TOKEN:?Preparar .env.model}
       PRIVATEWAY_SLM_MODEL: privateway-slm
       PRIVATEWAY_SLM_CONTEXT: ${PRIVATEWAY_SLM_CONTEXT:-2048}
-      PRIVATEWAY_SLM_MODEL_KIND: ${PRIVATEWAY_SLM_MODEL_KIND:-qwen}
       PRIVATEWAY_EMBEDDINGS_URL: http://embeddings:8001
-      PRIVATEWAY_EMBEDDINGS_TOKEN: ${PRIVATEWAY_EMBEDDINGS_TOKEN:?Preparar .env.pilot}
-      PRIVATEWAY_MODELS_LOCK: /pilot/models.lock.json
+      PRIVATEWAY_EMBEDDINGS_TOKEN: ${PRIVATEWAY_EMBEDDINGS_TOKEN:?Preparar .env.model}
+      PRIVATEWAY_MODELS_LOCK: /model/models.lock.json
     volumes:
       - ./Model/corpus:/corpus:ro
-      - ./Model/models.lock.json:/pilot/models.lock.json:ro
+      - ./Model/models.lock.json:/model/models.lock.json:ro
+      - ./Model/datasets:/model/datasets:ro
+      - ./Model/experimentos/resultados:/model/resultados
     depends_on:
       vllm:
         condition: service_healthy

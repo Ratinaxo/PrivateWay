@@ -2,16 +2,16 @@
 
 ## Contexto
 
-PrivateWay es un proyecto de tesis para proteger datos antes de enviar mensajes a proveedores LLM. El repositorio contiene un frontend/BFF Next.js y TypeScript, un gateway FastAPI, autenticación Keycloak/OIDC, persistencia PostgreSQL y un piloto de detección local con Presidio, vLLM, embeddings y RAG.
+PrivateWay es un proyecto de tesis para proteger datos antes de enviar mensajes a proveedores LLM. El repositorio contiene un frontend/BFF Next.js y TypeScript, un gateway FastAPI, autenticación Keycloak/OIDC, persistencia PostgreSQL y un flujo local opcional con Presidio, vLLM, embeddings y RAG.
 
-Antes de cambiar un área, lee el README correspondiente y los contratos o pruebas de esa área. Para SLM/RAG, consulta `Model/README.md`, `README-pilot.md` y la documentación dentro de `Model/`.
+Antes de cambiar un área, lee el README correspondiente y los contratos o pruebas de esa área. Para SLM/RAG, consulta `Model/README.md`, `README-experimentos.md` y la documentación dentro de `Model/`.
 
 ## Límites importantes
 
-- Mantén los secretos fuera de Git, respuestas, logs y artefactos. No leas ni muestres `.env` ni `.env.pilot`; usa `.env.example` para conocer nombres de variables.
-- No transmitas consultas del proyecto a proveedores reales. Las evaluaciones locales usan datos sintéticos y proveedores espía; el smoke HTTP del laboratorio puede salir a un proveedor solo si se configura explícitamente.
+- Mantén los secretos fuera de Git, respuestas, logs y artefactos. No leas ni muestres `.env` ni `.env.model`; usa `.env.example` para conocer nombres de variables.
+- No transmitas consultas del proyecto a proveedores reales. Las evaluaciones locales usan datos sintéticos y proveedores espía.
 - No uses el conjunto reservado de validación para ajustar prompts, modelos o reglas. Conserva su separación de desarrollo.
-- No afirmes que las reglas experimentales del piloto son conclusiones legales generales.
+- No afirmes que las reglas experimentales son conclusiones legales generales.
 - Conserva los contratos públicos entre frontend/BFF y gateway salvo que el usuario apruebe explícitamente un cambio coordinado.
 - Ubicación principal: gateway/REGEX en `Backend/`, interfaz/BFF en `Frontend/`, infraestructura en `Servidor/` y SLM/RAG/datasets/experimentos en `Model/`.
 - No borres volúmenes Docker ni ejecutes comandos destructivos de infraestructura.

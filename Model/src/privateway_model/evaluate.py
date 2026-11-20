@@ -202,7 +202,7 @@ async def evaluar(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--datos", type=Path, default=Path("/pilot/datasets/v1"))
+    parser.add_argument("--datos", type=Path, default=Path("/model/datasets/v1"))
     parser.add_argument("--split", choices=["desarrollo","validacion","reto"], default="desarrollo")
     parser.add_argument("--modo", choices=["regex","slm","hibrido"], default="hibrido")
     parser.add_argument("--nivel", choices=["deteccion","flujo"], default="deteccion")

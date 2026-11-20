@@ -52,7 +52,7 @@ legislativas recuperadas. La acción la calcula localmente el gateway según el 
 técnico experimental; no puedes cambiarla. Cita solo ids disponibles.
 La ley define datos personales y sensibles, pero una definición no impone por sí sola
 permitir, seudonimizar o bloquear. Explica la categoría y señala que la acción responde
-al criterio técnico del piloto, sin atribuirle un mandato jurídico inexistente.
+al criterio técnico configurado, sin atribuirle un mandato jurídico inexistente.
 Devuelve una sola referencia pertinente y una oración breve en español de menos de 100 caracteres.
 Devuelve JSON compacto, sin sangría.
 No reproduzcas datos personales ni inventes fuentes."""

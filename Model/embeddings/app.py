@@ -21,12 +21,12 @@ MODELO_TIPO = os.environ.get("EMBEDDINGS_KIND", "e5")
 @asynccontextmanager
 async def lifespan(app):
     global model
-    if MODELO_TIPO not in {"e5", "bge-m3"}:
-        raise RuntimeError("EMBEDDINGS_KIND debe ser e5 o bge-m3")
+    if MODELO_TIPO != "e5":
+        raise RuntimeError("EMBEDDINGS_KIND debe ser e5")
     model = SentenceTransformer(os.environ.get("EMBEDDINGS_MODEL", "/models/e5"), device="cpu")
     model.max_seq_length = 512
     if model.get_sentence_embedding_dimension() != 1024:
-        raise RuntimeError("el esquema pgvector del piloto requiere embeddings de 1024 dimensiones")
+        raise RuntimeError("el esquema pgvector requiere embeddings de 1024 dimensiones")
     yield
 
 
@@ -57,8 +57,7 @@ class Texto(BaseModel):
 @app.get("/ready")
 def ready(authorization: str | None = Header(default=None)):
     autorizado(authorization)
-    revision_env = "PRIVATEWAY_BGE_M3_REVISION" if MODELO_TIPO == "bge-m3" else "PRIVATEWAY_E5_REVISION"
-    revision = os.environ.get(revision_env)
+    revision = os.environ.get("PRIVATEWAY_E5_REVISION")
     if not revision or revision == "no-descargado":
         raise HTTPException(503, "REVISION_EMBEDDINGS_NO_CONFIGURADA")
     return {"ready": model is not None, "modelo": MODELO_ID,
@@ -80,8 +79,7 @@ def segmentos(data: Texto, authorization: str | None = Header(default=None)):
 @app.post("/encode")
 def encode(data: Entrada, authorization: str | None = Header(default=None)):
     autorizado(authorization)
-    textos = ([t for t in data.textos] if MODELO_TIPO == "bge-m3"
-              else [f"{data.tipo}: {t}" for t in data.textos])
+    textos = [f"{data.tipo}: {t}" for t in data.textos]
     with lock:
         if any(len(model.tokenizer(t)["input_ids"]) > 512 for t in textos):
             raise HTTPException(422, "ENTRADA_EXCEDE_512_TOKENS")

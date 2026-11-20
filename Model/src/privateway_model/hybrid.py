@@ -1,4 +1,4 @@
-"""Piloto REGEX + SLM → fusión → tratamiento. Toda inconsistencia detiene el envío."""
+"""Pipeline híbrido REGEX + SLM → fusión → tratamiento."""
 from __future__ import annotations
 
 import asyncio
@@ -56,13 +56,13 @@ def _explicacion(accion, por_mensaje, fragmentos):
     categorias = sorted({h.categoria.value for hs in por_mensaje for h in hs})
     if accion == Accion.BLOQUEAR:
         regla = "PW-PRIVACIDAD-SALUD-01"
-        texto = "El piloto bloquea solicitudes cuando detecta salud asociada a una persona."
+        texto = "La regla experimental bloquea si detecta salud asociada a una persona."
     elif accion == Accion.SEUDONIMIZAR:
         regla = "PW-PRIVACIDAD-PII-01"
-        texto = "El piloto reemplaza los hallazgos detectados por marcadores locales."
+        texto = "El sistema reemplaza los hallazgos detectados por marcadores locales."
     else:
         regla = "PW-PRIVACIDAD-LIMPIO-01"
-        texto = "El analizador no detectó categorías cubiertas por este piloto."
+        texto = "El analizador no detectó las categorías configuradas."
     return {
         "tipo": "regla_tecnica_experimental",
         "regla_id": regla,
@@ -78,7 +78,7 @@ def _explicacion(accion, por_mensaje, fragmentos):
     }
 
 
-INSTRUCCION = """Eres el analizador local de privacidad de un piloto académico en español.
+INSTRUCCION = """Eres el analizador local de privacidad de PrivateWay en español.
 OBJETIVO: extrae datos personales EXCLUSIVAMENTE del campo mensajes[].texto.
 fragmentos contiene LEYES DE REFERENCIA: nunca extraigas entidades de esos textos,
 de sus ids, de estas instrucciones ni de ejemplos.
@@ -299,7 +299,7 @@ class PipelineHibrido(PipelineRegex):
         etiquetas = {}
         nuevos = []
         if esperada != Accion.BLOQUEAR:
-            # Marcadores de entrada se rechazan para evitar colisiones del piloto.
+            # Marcadores de entrada se rechazan para evitar colisiones.
             if any("[PW_" in m.content for m in solicitud.messages):
                 raise ValueError("colision marcador")
             for m, hs in zip(solicitud.messages, por_mensaje):

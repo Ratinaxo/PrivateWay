@@ -16,7 +16,7 @@ async def evaluar(split: str, dataset: Path, salida: Path) -> None:
         raise ValueError("Se esperaban doce preguntas jurídicas en el conjunto")
     pipeline = desde_entorno()
     if not await pipeline.comprobar():
-        raise RuntimeError("Servicios del piloto no disponibles")
+        raise RuntimeError("Servicios locales de SLM/RAG no disponibles")
     muestras = []
     for caso in casos:
         mensajes = [Mensaje(role="user", content=caso["consulta"])]
@@ -53,7 +53,7 @@ async def evaluar(split: str, dataset: Path, salida: Path) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--split", choices=("desarrollo", "validacion"), default="desarrollo")
-    parser.add_argument("--dataset", type=Path, default=Path("/pilot/datasets/v1/recuperacion.json"))
+    parser.add_argument("--dataset", type=Path, default=Path("/model/datasets/v1/recuperacion.json"))
     parser.add_argument("--salida", type=Path, required=True)
     args = parser.parse_args()
     if args.salida.exists():

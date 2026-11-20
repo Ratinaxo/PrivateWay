@@ -77,7 +77,7 @@ def main():
                                    estado="vigencia_diferida", texto=t))
     if not fragmentos:
         raise ValueError("No se localizaron artículos. Inspeccionar XML; no se activa corpus vacío.")
-    (ROOT / "manifest.json").write_text(json.dumps(dict(version="bcn-2026-12-01-piloto-v1",
+    (ROOT / "manifest.json").write_text(json.dumps(dict(version="bcn-2026-12-01-privateway-v1",
         documentos=docs, fragmentos=fragmentos), ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Corpus preparado: {len(fragmentos)} unidades legislativas.")
 

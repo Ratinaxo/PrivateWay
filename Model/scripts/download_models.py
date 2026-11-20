@@ -2,20 +2,17 @@
 import concurrent.futures
 import hashlib
 import json
-import os
 from pathlib import Path
 import time
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
 MODELS = [("Qwen/Qwen2.5-3B-Instruct-AWQ", "qwen", "qwen-research"),
-          ("QuantTrio/Qwen3.5-4B-AWQ", "qwen35", "apache-2.0"),
-          ("intfloat/multilingual-e5-large", "e5", "mit"),
-          ("BAAI/bge-m3", "bge-m3", "mit")]
+          ("intfloat/multilingual-e5-large", "e5", "mit")]
 
 
 def obtener(url):
-    return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "PrivateWay-research-pilot/1.0"}), timeout=120)
+    return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "PrivateWay/1.0"}), timeout=120)
 
 
 def descargar(repo, revision, nombre, destino):
@@ -49,7 +46,7 @@ def main():
         revision = meta["sha"]
         nombres = [s["rfilename"] for s in meta["siblings"]
                    if (s["rfilename"].endswith((".safetensors", ".json", ".txt", ".model", ".md"))
-                       or (repo == "BAAI/bge-m3" and s["rfilename"] == "pytorch_model.bin"))
+                       )
                    and not s["rfilename"].startswith(("onnx/", "openvino/"))]
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             list(pool.map(lambda n: descargar(repo, revision, n, ROOT / "Model/models" / carpeta / n), nombres))
@@ -63,12 +60,12 @@ def main():
     temporal_lock = lock.with_name(lock.name + ".tmp")
     temporal_lock.write_text(json.dumps(manifiesto, indent=2), encoding="utf-8")
     temporal_lock.replace(lock)
-    env = ROOT / ".env.pilot"
+    env = ROOT / ".env.model"
+    if not env.exists():
+        raise FileNotFoundError("Ejecuta primero Model/scripts/setup_model_env.py")
     revision = next(m["revision"] for m in manifiesto if m["carpeta"] == "e5")
     lines = env.read_text().splitlines()
-    bge_revision = next(m["revision"] for m in manifiesto if m["carpeta"] == "bge-m3")
-    actualizados = {"PRIVATEWAY_E5_REVISION": revision,
-                    "PRIVATEWAY_BGE_M3_REVISION": bge_revision}
+    actualizados = {"PRIVATEWAY_E5_REVISION": revision}
     for key, value in actualizados.items():
         if not any(line.startswith(key + "=") for line in lines):
             lines.append(f"{key}={value}")

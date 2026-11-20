@@ -15,7 +15,7 @@ generan de forma determinista. Cada hallazgo lleva offsets exactos en caracteres
 - `validacion.json`: 1.200 solicitudes de 60 familias distintas; reservar hasta congelar el
   prompt, el modelo, la configuración y las reglas.
 - `reto.json`: 200 solicitudes adversariales y de robustez; sus resultados se reportan aparte.
-- `recuperacion.json`: las 24 consultas RAG sintéticas versionadas del piloto.
+- `recuperacion.json`: las 24 consultas RAG sintéticas versionadas.
 - `manifest.json`: versión, semilla, conteos de familias, acciones y spans.
 - `matriz-60/`: pantalla exploratoria con el primer caso de cada una de las 60 familias
   de desarrollo y sus 12 consultas RAG. Mantiene todas las categorías, pero no tiene potencia
@@ -43,16 +43,18 @@ python Model/scripts/generate_benchmark_v2.py
 La generación es determinista. La semilla/versionado están en `manifest.json`. La v2 no
 sobrescribe los archivos de `v1/` ni sus resultados experimentales.
 
-## Evaluar en el Compose del piloto
+## Evaluar en el flujo híbrido principal
 
-La carpeta `Model/datasets` se monta completa en `/pilot/datasets`. Tras levantar el
-Compose y confirmar `/ready`, por ejemplo:
+La carpeta `Model/datasets` se monta en `/model/datasets` y las salidas en
+`/model/resultados`. Inicia el Compose principal con el override híbrido y evalúa desarrollo,
+por ejemplo:
 
 ```bash
-sudo docker compose --env-file .env.pilot -f compose.pilot.yaml exec -T backend \
-  python -m privateway_model.evaluate --datos /pilot/datasets/v2 --modo hibrido \
+docker compose --env-file .env --env-file .env.model \
+  -f compose.yaml -f compose.dev.yaml -f compose.hybrid.yaml exec -T backend \
+  python -m privateway_model.evaluate --datos /model/datasets/v2 --modo hibrido \
   --nivel deteccion --split desarrollo --concurrencia 1 \
-  --salida /pilot/results/v2-deteccion-hibrido-dev-c1.json
+  --salida /model/resultados/v2-deteccion-hibrido-dev-c1.json
 ```
 
 Para evaluar el flujo integral, usar `--nivel flujo --modo hibrido`; para el conjunto

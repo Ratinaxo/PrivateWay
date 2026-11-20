@@ -11,6 +11,5 @@ Contiene los componentes de inferencia y recuperación locales de PrivateWay:
 - `experimentos/resultados/`: salida local de ejecuciones, ignorada por Git.
 - `scripts/`: preparación del entorno, modelos, corpus, evaluación y exportación.
 
-La preparación y los comandos están en [README-pilot.md](../README-pilot.md),
-[README-experimentos.md](../README-experimentos.md) y
+La preparación y los comandos están en [README-experimentos.md](../README-experimentos.md) y
 [datasets/README.md](datasets/README.md).

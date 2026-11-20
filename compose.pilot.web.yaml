@@ -1,8 +1,0 @@
-# Habilita credenciales internas para historial/auditoría y alias E2E del piloto.
-services:
-  backend:
-    environment:
-      GATEWAY_CLIENT_TOKENS: ${PRIVATEWAY_GATEWAY_TOKEN},${PRIVATEWAY_E2E_GATEWAY_TOKEN:?Generar .env.web-pilot}
-      GATEWAY_HISTORY_TOKEN: ${PRIVATEWAY_E2E_HISTORY_TOKEN:?Generar .env.web-pilot}
-      GATEWAY_AUDIT_READ_TOKEN: ${PRIVATEWAY_E2E_AUDIT_READ_TOKEN:?Generar .env.web-pilot}
-      PRIVATEWAY_CONVERSATION_KEY: ${PRIVATEWAY_E2E_CONVERSATION_KEY:?Generar .env.web-pilot}

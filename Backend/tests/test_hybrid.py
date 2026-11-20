@@ -32,7 +32,7 @@ class Rag:
     async def buscar(self, mensajes, regex):
         if self.falla:
             raise RuntimeError("texto secreto")
-        return [{"id": "art2_0", "texto": "datos personales", "version": "piloto"}]
+        return [{"id": "art2_0", "texto": "datos personales", "version": "principal"}]
     async def versiones(self):
         return {"indice": "test"}
     async def comprobar(self):
@@ -68,7 +68,7 @@ class Slm:
             "accion": accion,
             "seleccionados": [h["id"] for h in hallazgos] if hallazgos else [],
             "referencias": [f["id"] for f in entrada["fragmentos"]],
-            "justificacion": "Clasificación técnica del piloto con fuente recuperada.",
+            "justificacion": "Clasificación técnica del flujo principal con fuente recuperada.",
         })
 
 
@@ -211,7 +211,7 @@ def test_juicio_final_recibe_la_union_y_sus_referencias():
                 "accion": accion,
                 "seleccionados": [h["id"] for h in hallazgos],
                 "referencias": ["art2_0"],
-                "justificacion": "La clasificación se apoya en la fuente recuperada y la regla del piloto.",
+                "justificacion": "La clasificación se apoya en la fuente recuperada y la regla del flujo principal.",
             })
     slm = SlmConJuicio()
     p = PipelineHibrido(recuperador=Rag(), slm=slm, detector=Detector())

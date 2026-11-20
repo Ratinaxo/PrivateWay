@@ -4,9 +4,7 @@ PrivateWay es un proyecto de tesis que desarrolla una interfaz conversacional un
 
 # Requisitos
 
-El laboratorio integrado con vLLM, E5 y pgvector está documentado en [README-pilot.md](README-pilot.md).
-Usa configuración y volúmenes propios. La ejecución normal requiere aliases/adaptadores de proveedores reales; los dobles simulados y espías se limitan a pruebas y evaluación local.
-Los experimentos reproducibles, sus comandos y la separación de datos están descritos en [README-experimentos.md](README-experimentos.md).
+La configuración del flujo principal está en [README-docker.md](README-docker.md). La preparación del modelo y la evaluación reproducible están en [README-experimentos.md](README-experimentos.md).
 
 - Git
 - Docker con Docker Compose o Docker Desktop.
@@ -38,11 +36,7 @@ Los experimentos reproducibles, sus comandos y la separación de datos están de
 
 - Flujo principal local con REGEX: `compose.yaml` y `compose.dev.yaml`.
 - Flujo híbrido principal con SLM/RAG: añade `compose.hybrid.yaml` y configura
-  `.env.pilot`; requiere GPU y modelos descargados en `Model/models/`.
-- Laboratorio aislado de evaluación: `compose.pilot.yaml`; añade `compose.lab.yaml`
-  únicamente cuando el smoke o el chat deban salir a un proveedor real.
-- Los overrides `compose.pilot.qwen35.yaml`, `compose.pilot.web.yaml` y
-  `compose.web-pilot.yaml` habilitan variantes opcionales del modelo o pruebas E2E web.
+  `.env.model`; requiere GPU y modelos descargados en `Model/models/`.
 
 Los detalles y comandos están en [README-docker.md](README-docker.md) y
 [README-experimentos.md](README-experimentos.md).
