@@ -18,7 +18,7 @@ def visibilidad(valor: str, enviado: str, categoria: str) -> str:
     visible = PATRON_MARCADOR.sub(" ", enviado)
     anotados = _PALABRA.findall(_normalizar(valor))
     observados = _PALABRA.findall(_normalizar(visible))
-    if categoria in {"run", "telefono"}:
+    if categoria in {"run", "telefono", "tarjeta", "geolocalizacion"}:
         digitos = "".join(c for c in valor if c.isdigit())
         # No unir cifras que estén separadas por palabras o marcadores.
         tramos = re.findall(r"\d(?:[\d .()+-]*\d)?", visible)

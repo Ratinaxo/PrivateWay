@@ -1,5 +1,5 @@
-# Activa SLM + embeddings + RAG en el gateway principal.
-# Usar junto con compose.yaml y, en desarrollo, compose.dev.yaml.
+# Overlay de compatibilidad para comandos anteriores.
+# compose.yaml ya define el flujo híbrido y no requiere este archivo.
 services:
   vllm:
     image: vllm/vllm-openai:v0.10.2@sha256:607442e407b0fea97f8a132a78b787c121a996dd4de181fa08e8da06e71ec2db

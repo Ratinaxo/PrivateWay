@@ -1,5 +1,4 @@
-# PrivateWay - entorno de desarrollo local, HTTP solo en loopback.
-# El gateway ejecuta REGEX por defecto; el análisis semántico aún está pendiente.
+# PrivateWay - laboratorio local, HTTP solo en loopback. Pipeline único híbrido.
 name: privateway
 
 services:
@@ -91,12 +90,28 @@ services:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
       GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
       PRIVATEWAY_COMPATIBLE_API_KEY: "${PRIVATEWAY_COMPATIBLE_API_KEY:-}"
+      PRIVATEWAY_PIPELINE: hibrido
+      PRIVATEWAY_SLM_URL: http://vllm:8000
+      PRIVATEWAY_SLM_TOKEN: ${PRIVATEWAY_SLM_TOKEN:?Preparar .env.model}
+      PRIVATEWAY_SLM_MODEL: privateway-slm
+      PRIVATEWAY_SLM_CONTEXT: ${PRIVATEWAY_SLM_CONTEXT:-2048}
+      PRIVATEWAY_EMBEDDINGS_URL: http://embeddings:8001
+      PRIVATEWAY_EMBEDDINGS_TOKEN: ${PRIVATEWAY_EMBEDDINGS_TOKEN:?Preparar .env.model}
+      PRIVATEWAY_MODELS_LOCK: /model/models.lock.json
     networks:
       - private
       - provider_egress
     volumes:
       - audit_data:/var/lib/privateway/audit
+      - ./Model/corpus:/corpus:ro
+      - ./Model/models.lock.json:/model/models.lock.json:ro
+      - ./Model/datasets:/model/datasets:ro
+      - ./Model/experimentos/resultados:/model/resultados
     depends_on:
+      vllm:
+        condition: service_healthy
+      embeddings:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     read_only: true
@@ -111,6 +126,59 @@ services:
       timeout: 5s
       retries: 3
       start_period: 25s
+
+  vllm:
+    image: vllm/vllm-openai:v0.10.2@sha256:607442e407b0fea97f8a132a78b787c121a996dd4de181fa08e8da06e71ec2db
+    restart: unless-stopped
+    gpus: all
+    shm_size: 1gb
+    environment:
+      VLLM_API_KEY: ${PRIVATEWAY_SLM_TOKEN:?Preparar .env.model}
+      HF_HUB_OFFLINE: '1'
+      VLLM_NO_USAGE_STATS: '1'
+      DO_NOT_TRACK: '1'
+    command:
+      - --model=${PRIVATEWAY_SLM_MODEL_DIR:-/models/qwen}
+      - --served-model-name=privateway-slm
+      - --dtype=half
+      - --quantization=${PRIVATEWAY_SLM_QUANTIZATION:-awq_marlin}
+      - --max-model-len=${PRIVATEWAY_SLM_CONTEXT:-2048}
+      - --max-num-seqs=1
+      - --max-num-batched-tokens=${PRIVATEWAY_SLM_CONTEXT:-2048}
+      - --gpu-memory-utilization=${PRIVATEWAY_GPU_MEMORY:-0.75}
+      - --enforce-eager
+      - --swap-space=0
+      - --disable-log-requests
+      - --disable-log-stats
+    volumes:
+      - ./Model/models:/models:ro
+    networks:
+      - private
+    healthcheck:
+      test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  embeddings:
+    build: ./Model/embeddings
+    environment:
+      PRIVATEWAY_EMBEDDINGS_TOKEN: ${PRIVATEWAY_EMBEDDINGS_TOKEN:?Preparar .env.model}
+      PRIVATEWAY_E5_REVISION: ${PRIVATEWAY_E5_REVISION:?Descargar los modelos}
+      EMBEDDINGS_MODEL: ${PRIVATEWAY_EMBEDDINGS_MODEL:-/models/e5}
+      EMBEDDINGS_MODEL_ID: ${PRIVATEWAY_EMBEDDINGS_MODEL_ID:-intfloat/multilingual-e5-large}
+      EMBEDDINGS_KIND: ${PRIVATEWAY_EMBEDDINGS_KIND:-e5}
+    volumes:
+      - ./Model/models:/models:ro
+    networks:
+      - private
+    healthcheck:
+      test: [CMD, python, -c, "import os,urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8001/ready',headers={'Authorization':'Bearer '+os.environ['PRIVATEWAY_EMBEDDINGS_TOKEN']}),timeout=5)"]
+      interval: 20s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.1.4

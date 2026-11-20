@@ -54,7 +54,9 @@ class Slm:
                                      ("diabetes", "salud")]:
                 if texto in m["texto"]:
                     hs.append(dict(mensaje=m["indice"], categoria=categoria, texto=texto,
-                                   persona_asociada=categoria == "salud"))
+                                   persona_asociada=categoria == "salud",
+                                   **({"subcategoria": "datos relativos a la salud"}
+                                      if categoria == "salud" else {})))
         juicio = dict(hallazgos=hs)
         if self.editar:
             juicio = self.editar(juicio)
@@ -87,6 +89,14 @@ def test_sin_regex_igual_invoca_slm_y_detecta_persona():
     assert "Ana Torres" not in d.mensajes_salida[0].content
     assert p.slm.entradas[0]["mensajes"][0]["texto"] == "Resume el caso de Ana Torres"
     assert "regex" not in p.slm.entradas[0]
+
+
+def test_traza_registra_clase_legal_derivada_de_categoria():
+    d = analizar(pipeline(), "Resume el caso de Ana Torres")
+    persona = next(h for h in d.traza["hallazgos"] if h["categoria"] == "persona")
+    assert persona["clase_legal"] == "identificador_dato_personal"
+    assert persona["subcategorias"] == []
+    assert persona["atributo_titular"] is False
 
 
 def test_dos_detectores_independientes_se_fusionan_y_reportan_metricas():
@@ -174,7 +184,8 @@ def test_salud_sin_asociacion_personal_se_seudonimiza():
         async def juzgar(self, instruccion, entrada, esquema):
             return json.dumps({"hallazgos": [
                 {"mensaje": 0, "categoria": "salud", "texto": "diabetes",
-                 "persona_asociada": False}
+                 "persona_asociada": False,
+                 "subcategoria": "datos relativos a la salud"}
             ]})
     d = analizar(PipelineHibrido(recuperador=Rag(), slm=SlmSaludGeneral(),
                                  detector=Detector()), "¿Qué significa diabetes?")
@@ -192,7 +203,8 @@ def test_salud_coincidente_regex_slm_conserva_asociacion_y_bloquea():
         async def juzgar(self, instruccion, entrada, esquema):
             return json.dumps({"hallazgos": [
                 {"mensaje": 0, "categoria": "salud", "texto": "diabetes",
-                 "persona_asociada": True}
+                 "persona_asociada": True,
+                 "subcategoria": "datos relativos a la salud"}
             ]})
     p = PipelineHibrido(recuperador=Rag(), slm=SlmSalud(), detector=DetectorSalud())
     d = analizar(p, "Ana tiene diabetes")

@@ -97,15 +97,11 @@ def create_app(*, config=None, pipeline=None, auditoria=None, adaptadores=None, 
         auditoria = AuditoriaArchivo(ruta_auditoria) if ruta_auditoria else AuditoriaNoConfigurada()
     adaptadores = adaptadores if adaptadores is not None else proveedores_desde_entorno()
     if pipeline is None:
-        modo = os.environ.get("PRIVATEWAY_PIPELINE", "regex")
-        if modo == "hibrido":
-            from privateway_model.hybrid import desde_entorno
-            pipeline = desde_entorno()
-        elif modo == "regex":
-            from backend.gateway.regex_pipeline import PipelineRegex
-            pipeline = PipelineRegex()
-        else:
-            raise RuntimeError("PRIVATEWAY_PIPELINE no admitido")
+        modo = os.environ.get("PRIVATEWAY_PIPELINE", "hibrido")
+        if modo != "hibrido":
+            raise RuntimeError("PRIVATEWAY_PIPELINE debe ser hibrido")
+        from privateway_model.hybrid import desde_entorno
+        pipeline = desde_entorno()
 
     # Claves opcionales hasta completar configuración del entorno de desarrollo.
     # Nunca guardar PII en el JSONL. La vista detallada usa cifrado separado.

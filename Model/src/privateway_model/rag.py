@@ -72,9 +72,48 @@ class RecuperadorPostgres:
         "run": "identificador personal RUN cédula de identidad persona identificable",
         "correo": "dato personal dirección de correo electrónico identificador",
         "telefono": "dato personal número telefónico identificador",
+        "tarjeta": "dato personal número de tarjeta de pago identificable",
+        "patente": "dato personal placa patente vehículo identificable",
         "persona": "dato personal persona identificada o identificable",
         "direccion": "dato personal domicilio dirección de una persona",
+        "identificador": "datos personales combinación de atributos medios razonables de identificación",
+        "origen_etnico": "dato personal sensible origen étnico o racial",
+        "afiliacion": "dato personal sensible afiliación política sindical o gremial",
+        "socioeconomico": "dato personal sensible situación socioeconómica",
+        "convicciones": "dato personal sensible convicciones ideológicas filosóficas creencias religiosas",
         "salud": "dato personal sensible relativo a la salud",
+        "perfil_biologico": "dato personal sensible genético proteómico metabólico muestras biológicas",
+        "biometrico": "dato personal sensible biométrico identificación única",
+        "sexualidad": "dato personal sensible vida sexual orientación sexual identidad de género",
+        "menor_de_edad": "categoría especial niño niña adolescente edad consentimiento titular",
+        "geolocalizacion": "categoría especial datos de geolocalización coordenadas ubicación en tiempo real",
+        "obligaciones": "datos relativos a obligaciones económicas financieras bancarias comerciales",
+        "infracciones": "datos relativos a infracciones penales civiles administrativas disciplinarias",
+    }
+    _CONSULTAS_SUBCATEGORIA = {
+        "origen étnico": "origen étnico",
+        "origen racial": "origen racial",
+        "afiliación política": "afiliación política",
+        "afiliación sindical": "afiliación sindical",
+        "afiliación gremial": "afiliación gremial",
+        "situación socioeconómica": "situación socioeconómica",
+        "convicciones ideológicas": "convicciones ideológicas",
+        "convicciones filosóficas": "convicciones filosóficas",
+        "creencias religiosas": "creencias religiosas",
+        "datos relativos a la salud": "datos relativos a la salud",
+        "datos genéticos": "datos genéticos",
+        "datos proteómicos": "datos proteómicos",
+        "datos metabólicos": "datos metabólicos",
+        "muestras biológicas": "muestras biológicas",
+        "huella digital": "huella digital biométrica",
+        "iris": "iris biométrico",
+        "rasgos de la mano": "rasgos de la mano biométricos",
+        "rasgos faciales": "rasgos faciales biométricos",
+        "voz": "voz biométrica",
+        "características conductuales": "características conductuales biométricas",
+        "vida sexual": "vida sexual",
+        "orientación sexual": "orientación sexual",
+        "identidad de género": "identidad de género",
     }
 
     def __init__(self, embeddings):
@@ -106,6 +145,7 @@ class RecuperadorPostgres:
         # Aportar contexto legislativo a partir de la categoría detectada, sin
         # copiar valores sensibles ni offsets del hallazgo a los embeddings.
         categorias = set()
+        subcategorias = set()
         for h in regex or []:
             categoria = getattr(h, "categoria", None)
             if categoria is None and isinstance(h, dict):
@@ -113,7 +153,11 @@ class RecuperadorPostgres:
             categoria = getattr(categoria, "value", categoria)
             if categoria in self._CONSULTAS_CATEGORIA:
                 categorias.add(categoria)
+                subcategoria = h.get("subcategoria") if isinstance(h, dict) else getattr(h, "subcategoria", None)
+                if subcategoria in self._CONSULTAS_SUBCATEGORIA:
+                    subcategorias.add(subcategoria)
         textos.extend(self._CONSULTAS_CATEGORIA[c] for c in sorted(categorias))
+        textos.extend(self._CONSULTAS_SUBCATEGORIA[c] for c in sorted(subcategorias))
         if not textos:
             return []
         vectores = await self.embeddings.codificar(textos, "query")

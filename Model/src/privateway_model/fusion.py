@@ -6,6 +6,8 @@ traza; categorías distintas nunca se colapsan aunque cubran el mismo texto.
 """
 from __future__ import annotations
 
+from backend.deteccion.hallazgo import Categoria, CLASE_POR_CATEGORIA
+
 
 def normalizar_hallazgos(hallazgos: list[dict], mensajes: list[str]) -> list[dict]:
     """Normaliza solapamientos sin perder spans ni procedencia de origen.
@@ -44,9 +46,15 @@ def normalizar_hallazgos(hallazgos: list[dict], mensajes: list[str]) -> list[dic
                 {"inicio": h["inicio"], "fin": h["fin"], "texto": h["texto"],
                  "fuente": h["fuente"], "confianza": h.get("confianza"),
                  "verificado": h.get("verificado"),
-                 "persona_asociada": h.get("persona_asociada", False)}
+                 "persona_asociada": h.get("persona_asociada", False),
+                 "subcategoria": h.get("subcategoria"),
+                 "asociado_a": h.get("asociado_a")}
                 for h in componente
             ]
+            subcategorias = sorted({h["subcategoria"] for h in componente
+                                    if h.get("subcategoria")})
+            asociados = sorted({h["asociado_a"] for h in componente
+                                if h.get("asociado_a")})
             fuentes = sorted({h["fuente"] for h in componente})
             confianza_regex = [h["confianza"] for h in componente
                                if h["fuente"] == "regex" and h.get("confianza") is not None]
@@ -57,6 +65,10 @@ def normalizar_hallazgos(hallazgos: list[dict], mensajes: list[str]) -> list[dic
             salida.append({
                 "mensaje": mensaje, "inicio": inicio, "fin": fin,
                 "categoria": categoria, "texto": mensajes[mensaje][inicio:fin],
+                "clase_legal": CLASE_POR_CATEGORIA[Categoria(categoria)].value,
+                "subcategorias": subcategorias,
+                "atributo_titular": categoria == Categoria.MENOR_DE_EDAD.value,
+                "asociado_a": asociados,
                 "fuentes": fuentes,
                 "confianzas": {"regex": confianza_regex, "slm": []},
                 "confianza": confianza_span,

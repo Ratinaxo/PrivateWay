@@ -1,7 +1,9 @@
 import asyncio
 import json
 import pytest
-from privateway_model.slm_protocol import Extraccion, anclar, analizar
+from backend.deteccion.hallazgo import (Categoria, ClaseLegal, CLASE_POR_CATEGORIA,
+                                        SUBCATEGORIAS_SENSIBLES)
+from privateway_model.slm_protocol import Extraccion, ExtraccionPorCategoria, anclar, analizar
 from privateway_model.slm_protocol import extraer
 
 
@@ -10,11 +12,21 @@ def entidad(texto, mensaje=0, categoria="persona"):
 
 
 def wire(entidades):
-    grupos={c:[] for c in ["persona","direccion","salud","run","correo","telefono"]}
+    grupos={c:[] for c in [
+        "persona", "direccion", "identificador", "run", "correo", "telefono", "tarjeta",
+        "patente", "origen_etnico", "afiliacion", "socioeconomico", "convicciones", "salud",
+        "perfil_biologico", "biometrico", "sexualidad", "menor_de_edad", "geolocalizacion",
+        "obligaciones", "infracciones",
+    ]}
     for e in entidades:
         m={"texto":e["texto"],"mensaje":e["mensaje"]}
         if e["categoria"] == "salud":
             m["persona_asociada"]=e["persona_asociada"]
+            m["subcategoria"]="datos relativos a la salud"
+        elif Categoria(e["categoria"]) in SUBCATEGORIAS_SENSIBLES:
+            m["subcategoria"] = sorted(SUBCATEGORIAS_SENSIBLES[Categoria(e["categoria"])])[0]
+        if e["categoria"] == "menor_de_edad":
+            m["asociado_a"] = e.get("asociado_a", "Ana Torres")
         grupos[e["categoria"]].append(m)
     return json.dumps(grupos)
 
@@ -61,6 +73,35 @@ def test_fusion_de_salud_combina_asociacion_personal():
     salida = anclar(ex, [{"indice": 0, "texto": "Ana tiene diabetes"}], [previo])
     assert len(salida) == 1
     assert salida[0]["persona_asociada"] is True
+
+
+def test_taxonomia_completa_declara_clase_legal_y_subcategorias():
+    categorias = {campo for campo in ExtraccionPorCategoria.model_fields}
+    assert categorias == {categoria.value for categoria in Categoria}
+    assert CLASE_POR_CATEGORIA[Categoria.SALUD] == ClaseLegal.SENSIBLE
+    assert CLASE_POR_CATEGORIA[Categoria.GEOLOCALIZACION] == ClaseLegal.REGIMEN_ESPECIAL
+    assert "datos genéticos" in SUBCATEGORIAS_SENSIBLES[Categoria.PERFIL_BIOLOGICO]
+
+
+def test_menor_de_edad_se_asocia_a_hallazgo_de_persona():
+    ex = Extraccion.model_validate({"entidades": [{
+        "categoria": "menor_de_edad", "texto": "13 años", "mensaje": 0,
+        "persona_asociada": False, "asociado_a": "Ana Torres",
+    }]})
+    salida = anclar(ex, [{"indice": 0, "texto": "Ana Torres tiene 13 años"}], [])
+    menor = next(h for h in salida if h["categoria"] == "menor_de_edad")
+    persona = next(h for h in salida if h["categoria"] == "persona")
+    assert menor["asociado_a"] == "Ana Torres"
+    assert persona["texto"] == "Ana Torres"
+
+
+def test_subcategoria_sensible_invalida_se_rechaza():
+    ex = Extraccion.model_validate({"entidades": [{
+        "categoria": "salud", "texto": "asma", "mensaje": 0,
+        "persona_asociada": False, "subcategoria": "origen racial",
+    }]})
+    with pytest.raises(ValueError, match="subcategoria sensible invalida"):
+        anclar(ex, [{"indice": 0, "texto": "asma"}], [])
 
 
 def test_accion_determinista_y_fuentes_solo_al_fundamento():

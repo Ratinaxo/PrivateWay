@@ -32,11 +32,12 @@ La configuración del flujo principal está en [README-docker.md](README-docker.
 - `Model/`: cliente SLM, protocolo y pipeline híbrido, servicio de embeddings, RAG,
   corpus, modelos, datasets y `experimentos/resultados/`.
 
-## Compose para cada flujo
+## Flujo principal
 
-- Flujo principal local con REGEX: `compose.yaml` y `compose.dev.yaml`.
-- Flujo híbrido principal con SLM/RAG: añade `compose.hybrid.yaml` y configura
-  `.env.model`; requiere GPU y modelos descargados en `Model/models/`.
+El único flujo del gateway es híbrido: REGEX y SLM analizan en paralelo y sus hallazgos se
+fusionan. `compose.yaml` define los servicios del laboratorio local; requiere `.env.model`,
+GPU y modelos descargados en `Model/models/`. Consulta [README-docker.md](README-docker.md) y
+[README-experimentos.md](README-experimentos.md) para prepararlo y arrancarlo.
 
 Los detalles y comandos están en [README-docker.md](README-docker.md) y
 [README-experimentos.md](README-experimentos.md).

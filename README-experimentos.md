@@ -1,8 +1,8 @@
 # Reproducción y evaluación
 
-La reproducción usa el flujo principal de PrivateWay. El modo normal protege las consultas
-con REGEX. El modo híbrido añade SLM, embeddings y recuperación RAG al mismo gateway; no hay
-un segundo stack de servidor.
+La reproducción usa el único flujo de PrivateWay: REGEX y SLM trabajan en paralelo y sus
+hallazgos se fusionan. El gateway requiere el stack híbrido con SLM, embeddings y recuperación
+RAG; no hay un modo operativo predeterminado solo REGEX.
 
 ## Preparar el modelo
 
@@ -31,17 +31,11 @@ modelos.
 
 ## Ejecutar el flujo principal
 
-Para el modo local REGEX:
-
-```bash
-docker compose -f compose.yaml -f compose.dev.yaml up -d --build
-```
-
-Para activar SLM y RAG en esos mismos servicios, añade `.env.model` y el override híbrido:
+Inicia el flujo híbrido único con `.env.model`:
 
 ```bash
 docker compose --env-file .env --env-file .env.model \
-  -f compose.yaml -f compose.dev.yaml -f compose.hybrid.yaml \
+  -f compose.yaml -f compose.dev.yaml \
   up -d --build
 ```
 
@@ -49,7 +43,7 @@ Con los servicios listos, carga el corpus en el PostgreSQL del flujo principal:
 
 ```bash
 docker compose --env-file .env --env-file .env.model \
-  -f compose.yaml -f compose.dev.yaml -f compose.hybrid.yaml \
+  -f compose.yaml -f compose.dev.yaml \
   run --rm --no-deps backend python -m privateway_model.rag /corpus/manifest.json
 ```
 
@@ -82,7 +76,7 @@ solo con desarrollo:
 
 ```bash
 docker compose --env-file .env --env-file .env.model \
-  -f compose.yaml -f compose.dev.yaml -f compose.hybrid.yaml exec -T backend \
+  -f compose.yaml -f compose.dev.yaml exec -T backend \
   python -m privateway_model.evaluate \
   --datos /model/datasets/v2/matriz-60 --modo hibrido --nivel flujo \
   --split desarrollo --concurrencia 1 \

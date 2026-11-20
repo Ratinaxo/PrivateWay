@@ -1,6 +1,6 @@
 """Detección estructurada offline mediante reconocedores de patrones de Presidio.
 
-No se crea ``AnalyzerEngine`` ni se descarga un modelo NLP: los tres
+No se crea ``AnalyzerEngine`` ni se descarga un modelo NLP: los
 reconocedores son ``PatternRecognizer`` ejecutados localmente. Este módulo
 devuelve hallazgos; el gateway orquesta su tratamiento y selecciona el
 adaptador configurado.
@@ -8,6 +8,7 @@ adaptador configurado.
 from __future__ import annotations
 
 from collections.abc import Sequence
+import re
 
 from presidio_analyzer import Pattern, PatternRecognizer, RecognizerResult
 
@@ -71,7 +72,7 @@ class ReconocedorCorreo(PatternRecognizer):
 
 
 class ReconocedorTelefono(PatternRecognizer):
-    """Móviles chilenos de nueve cifras, opcionalmente con prefijo 56."""
+    """Números chilenos móviles y fijos de nueve cifras, opcionalmente con prefijo 56."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -84,7 +85,7 @@ class ReconocedorTelefono(PatternRecognizer):
                     regex=(
                         r"(?<![\w+])"
                         r"(?:\+?56[\s-]?)?"
-                        r"9[\s-]?\d{4}[\s-]?\d{4}"
+                        r"[2-9][\s-]?\d{3,4}[\s-]?\d{3,4}"
                         r"(?![\w-])"
                     ),
                     score=1.0,
@@ -92,9 +93,104 @@ class ReconocedorTelefono(PatternRecognizer):
             ],
         )
 
+    def validate_result(self, pattern_text: str) -> bool:
+        digitos = "".join(c for c in pattern_text if c.isdigit())
+        if digitos.startswith("56"):
+            digitos = digitos[2:]
+        return len(digitos) == 9 and digitos[0] in "23456789"
+
+
+class ReconocedorTarjeta(PatternRecognizer):
+    """Números de tarjeta de 13–19 dígitos con separadores opcionales y Luhn."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            supported_entity=Categoria.TARJETA.name,
+            name="tarjeta_pago",
+            supported_language=IDIOMA,
+            patterns=[
+                Pattern(
+                    name="numero_tarjeta",
+                    regex=(
+                        r"(?<!\w)"
+                        r"(?:\d[ -]?){12,18}\d"
+                        r"(?!\w)"
+                    ),
+                    score=1.0,
+                )
+            ],
+        )
+
+    def validate_result(self, pattern_text: str) -> bool:
+        digitos = "".join(c for c in pattern_text if c.isdigit())
+        if not 13 <= len(digitos) <= 19:
+            return False
+        suma = 0
+        doble = False
+        for digito in reversed(digitos):
+            valor = int(digito)
+            if doble:
+                valor *= 2
+                if valor > 9:
+                    valor -= 9
+            suma += valor
+            doble = not doble
+        return suma % 10 == 0
+
+
+class ReconocedorPatente(PatternRecognizer):
+    """Formatos chilenos usuales de patente, confirmados por contexto vehicular."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            supported_entity=Categoria.PATENTE.name,
+            name="patente_chilena",
+            supported_language=IDIOMA,
+            patterns=[Pattern(
+                name="patente",
+                regex=r"(?i)(?<![A-Z0-9])(?:[A-Z]{4}[ -]?\d{2}|[A-Z]{2}[ -]?\d{3,4})(?![A-Z0-9])",
+                score=_PUNTAJE_PATRON,
+            )],
+            context=["patente", "placa patente", "vehículo", "automóvil", "auto", "motocicleta"],
+        )
+
+
+class ReconocedorGeolocalizacion(PatternRecognizer):
+    """Pares decimales latitud/longitud, validados por rango y contexto GPS."""
+
+    subcategoria = "coordenadas"
+    _COORDENADAS = re.compile(r"^\s*([+-]?\d{1,2}(?:\.\d+)?)\s*[,; ]\s*([+-]?\d{1,3}(?:\.\d+)?)\s*$")
+
+    def __init__(self) -> None:
+        super().__init__(
+            supported_entity=Categoria.GEOLOCALIZACION.name,
+            name="coordenadas_geograficas",
+            supported_language=IDIOMA,
+            patterns=[Pattern(
+                name="coordenadas_decimales",
+                regex=(
+                    r"(?<![\w.])"
+                    r"[+-]?\d{1,2}(?:\.\d+)?\s*[,; ]\s*[+-]?\d{1,3}(?:\.\d+)?"
+                    r"(?![\w.])"
+                ),
+                score=_PUNTAJE_PATRON,
+            )],
+            context=["coordenadas", "latitud", "longitud", "gps", "ubicación", "ubicacion"],
+        )
+
+    def validate_result(self, pattern_text: str) -> bool:
+        match = self._COORDENADAS.fullmatch(pattern_text)
+        if not match:
+            return False
+        latitud, longitud = map(float, match.groups())
+        return -90 <= latitud <= 90 and -180 <= longitud <= 180
+
 
 def reconocedores_por_omision() -> list[PatternRecognizer]:
-    return [ReconocedorRun(), ReconocedorCorreo(), ReconocedorTelefono()]
+    return [
+        ReconocedorRun(), ReconocedorCorreo(), ReconocedorTelefono(), ReconocedorTarjeta(),
+        ReconocedorPatente(), ReconocedorGeolocalizacion(),
+    ]
 
 
 class EtapaRegex:
@@ -140,6 +236,7 @@ class EtapaRegex:
             procedencia=Procedencia.REGEX,
             confianza=resultado.score,
             verificado=isinstance(reconocedor, ReconocedorRun),
+            subcategoria=getattr(reconocedor, "subcategoria", None),
         )
 
     @staticmethod

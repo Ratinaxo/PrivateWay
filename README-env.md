@@ -9,6 +9,7 @@ Este documento explica la configuración del **laboratorio local** de PrivateWay
 ## 1. Dónde se guardan y quién los utiliza
 
 - **`.env` (raíz del proyecto):** configuración privada de la máquina. Docker Compose la lee para sustituir expresiones `${VARIABLE}` en `compose.yaml` y `compose.dev.yaml`. No se debe subir al repositorio.
+- **`.env.model` (raíz del proyecto):** configuración privada obligatoria para el único flujo híbrido. Se crea al preparar el entorno del modelo y contiene credenciales locales de SLM/embeddings; no se sube al repositorio.
 - **`.env.example` (raíz):** plantilla que se versiona. Los valores vacíos de los secretos son placehoders: el script de python los rellena al ejecutarse por primera vez.
 - **`compose.yaml`:** inyecta las variables necesarias en los contenedores. Algunas URL e identificadores se fijan aquí y no requieren una entrada adicional en `.env`.
 - **Volumen `keycloak_db_data`:** almacena el estado de Keycloak (realm, cuentas, roles, credenciales y configuración). **No forma parte de `.env` ni de Git.**
@@ -16,7 +17,7 @@ Este documento explica la configuración del **laboratorio local** de PrivateWay
 ### Convenciones
 
 - **Obligatoria:** Compose o el servicio correspondiente la requiere para arrancar correctamente.
-- **Opcional:** su ausencia o valor vacío es válido en el laboratorio actual, salvo que actives el componente indicado.
+- **Opcional:** su ausencia o valor vacío es válido en el laboratorio actual.
 - **Secreto:** no debe publicarse. Generarlo con un generador criptográficamente seguro (basicamente el script de python), distinto para cada variable y cada equipo.
 
 ## 2. Variables del gateway y Docker
@@ -38,6 +39,10 @@ Este documento explica la configuración del **laboratorio local** de PrivateWay
 | `PRIVATEWAY_CONVERSATION_KEY` | **Secreto obligatorio** | Clave Fernet para cifrar las conversaciones en PostgreSQL. Si se pierde, no se pueden recuperar los chats anteriores. |
 | `PRIVATEWAY_AUDIT_READ_TOKEN` | **Secreto obligatorio** | Token de lectura de auditoría para el BFF; distinto del token de chat e historial. |
 | `PRIVATEWAY_AUDIT_CONTENT_KEY` | **Secreto obligatorio** | Clave Fernet para guardar y recuperar las vistas sensibles «antes/después». Si se pierde, las vistas existentes no serán legibles. |
+| `PRIVATEWAY_SLM_TOKEN` | **Secreto obligatorio en `.env.model`** | Credencial local entre el gateway y vLLM. No se envía a proveedores externos. |
+| `PRIVATEWAY_EMBEDDINGS_TOKEN` | **Secreto obligatorio en `.env.model`** | Credencial local entre el gateway y el servicio de embeddings. |
+| `PRIVATEWAY_E5_REVISION` | Obligatoria en `.env.model` | Revisión local del modelo de embeddings, generada durante la preparación de modelos. |
+| `PRIVATEWAY_SLM_MODEL_DIR`, `PRIVATEWAY_SLM_QUANTIZATION`, `PRIVATEWAY_SLM_CONTEXT`, `PRIVATEWAY_GPU_MEMORY` | Opcionales en `.env.model` | Ajustes locales de vLLM; los valores predeterminados se definen en Compose. |
 
 Configuración inicial sin proveedores externos ni aliases:
 
@@ -156,10 +161,13 @@ El script rellena **únicamente las variables de autenticación que falten o est
 ### 4.4 Validar y arrancar
 
 ```fish
-docker compose -f compose.yaml -f compose.dev.yaml config --quiet
-docker compose -f compose.yaml -f compose.dev.yaml up -d --build
-docker compose -f compose.yaml -f compose.dev.yaml ps -a
+docker compose --env-file .env --env-file .env.model -f compose.yaml -f compose.dev.yaml config --quiet
+docker compose --env-file .env --env-file .env.model -f compose.yaml -f compose.dev.yaml up -d --build
+docker compose --env-file .env --env-file .env.model -f compose.yaml -f compose.dev.yaml ps -a
 ```
+
+Antes de este paso, completa la preparación de SLM, embeddings y corpus descrita en
+`README-experimentos.md`; el stack requiere GPU y los modelos locales.
 
 `keycloak-init` **debe terminar en `Exited (0)`**. El resto de los servicios debe estar iniciado; el frontend, backend y PostgreSQL de Keycloak deberían alcanzar  su estado saludable. Todos los contenedores deberían estar en ejecución menos `keycloak-init`, este contenedor unicamente inicializa los valores para keycloak y muere.
 
@@ -239,6 +247,6 @@ No ejecutar `docker compose config` sin `--quiet` al compartir logs: puede mostr
 ## 8. Limitaciones vigentes
 
 - El login OIDC y el panel de administración se han comprobado manualmente en la instalación original; los demás desarrolladores deben repetir su propia prueba.
-- El pipeline REGEX está integrado y se ejecuta antes de cualquier adaptador configurado, incluido uno externo. REGEX solo reconoce las categorías implementadas: no detecta todos los datos personales o semánticos. RAG/SLM y las políticas definitivas siguen pendientes.
+- El flujo del gateway combina REGEX/Presidio y SLM/RAG en paralelo. REGEX solo reconoce las categorías implementadas y el SLM depende de los modelos locales preparados; la detección no cubre todos los datos personales o semánticos.
 - Las claves API de LLM son opcionales para probar la autenticación y la gestión de cuentas.
 - Para producción: utilizar HTTPS, secretos gestionados, Keycloak fuera de `start-dev`, MFA, copias de seguridad, hostname corporativo y revisión de permisos administrativos.

@@ -46,12 +46,12 @@ sobrescribe los archivos de `v1/` ni sus resultados experimentales.
 ## Evaluar en el flujo híbrido principal
 
 La carpeta `Model/datasets` se monta en `/model/datasets` y las salidas en
-`/model/resultados`. Inicia el Compose principal con el override híbrido y evalúa desarrollo,
+`/model/resultados`. Inicia el Compose principal y evalúa desarrollo,
 por ejemplo:
 
 ```bash
 docker compose --env-file .env --env-file .env.model \
-  -f compose.yaml -f compose.dev.yaml -f compose.hybrid.yaml exec -T backend \
+  -f compose.yaml -f compose.dev.yaml exec -T backend \
   python -m privateway_model.evaluate --datos /model/datasets/v2 --modo hibrido \
   --nivel deteccion --split desarrollo --concurrencia 1 \
   --salida /model/resultados/v2-deteccion-hibrido-dev-c1.json

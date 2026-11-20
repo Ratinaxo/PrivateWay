@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 from privateway_model import rag
 from backend.gateway.contracts import Mensaje
+from backend.deteccion.hallazgo import Categoria, SUBCATEGORIAS_SENSIBLES
 
 
 def test_identidad_fragmento_no_colisiona_con_unidad_legal(monkeypatch):
@@ -49,3 +50,13 @@ def test_codificar_en_lotes_rechaza_respuesta_incompleta():
 
     with pytest.raises(ValueError, match="embeddings incompletos"):
         asyncio.run(rag.codificar_en_lotes(Embeddings(), ["pasaje-1", "pasaje-2"], "passage"))
+
+
+def test_rag_tiene_consulta_por_categoria_y_subcategoria_sensible():
+    assert set(rag.RecuperadorPostgres._CONSULTAS_CATEGORIA) == {
+        categoria.value for categoria in Categoria
+    }
+    subcategorias = {subcategoria for values in SUBCATEGORIAS_SENSIBLES.values()
+                     for subcategoria in values}
+    assert subcategorias <= set(rag.RecuperadorPostgres._CONSULTAS_SUBCATEGORIA)
+    assert "orientación sexual" in rag.RecuperadorPostgres._CONSULTAS_SUBCATEGORIA["orientación sexual"]

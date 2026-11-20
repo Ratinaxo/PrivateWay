@@ -46,6 +46,22 @@ def test_run_invalido_no_es_aceptado(etapa, texto):
     ("Móvil 912345678", "912345678", Categoria.TELEFONO),
     ("Móvil +56912345678", "+56912345678", Categoria.TELEFONO),
     ("Móvil 56-9-1234-5678", "56-9-1234-5678", Categoria.TELEFONO),
+    ("Fijo +56 2 2345 6789", "+56 2 2345 6789", Categoria.TELEFONO),
+    ("Patente ABCD-12", "ABCD-12", Categoria.PATENTE),
+    ("Patente antigua AB-1234", "AB-1234", Categoria.PATENTE),
+    ("GPS coordenadas -33.4489, -70.6693", "-33.4489, -70.6693", Categoria.GEOLOCALIZACION),
+    ("Móvil +56987654321", "+56987654321", Categoria.TELEFONO),
+    ("Móvil 987654321", "987654321", Categoria.TELEFONO),
+    ("Móvil +56 9 87654321", "+56 9 87654321", Categoria.TELEFONO),
+    ("Móvil +56 987654321", "+56 987654321", Categoria.TELEFONO),
+    ("Móvil 9 87654321", "9 87654321", Categoria.TELEFONO),
+    ("Correo Gmail ana@gmail.com", "ana@gmail.com", Categoria.CORREO),
+    ("Correo Hotmail ana@hotmail.com", "ana@hotmail.com", Categoria.CORREO),
+    ("Correo Outlook ana@outlook.com", "ana@outlook.com", Categoria.CORREO),
+    ("Correo otro dominio ana@empresa.co.uk", "ana@empresa.co.uk", Categoria.CORREO),
+    ("Tarjeta 4111 1111 1111 1111", "4111 1111 1111 1111", Categoria.TARJETA),
+    ("Tarjeta 4111111111111111", "4111111111111111", Categoria.TARJETA),
+    ("Tarjeta 4111-1111-1111-1111", "4111-1111-1111-1111", Categoria.TARJETA),
 ])
 def test_otros_patrones_y_posiciones(etapa, texto, valor, categoria):
     encontrados = etapa.analizar(texto)
@@ -60,5 +76,12 @@ def test_run_y_telefono_ambiguos_se_conservan_como_evidencias(etapa):
 
 
 def test_detector_no_requiere_analyzer_engine_ni_spacy_model(etapa):
-    assert len(etapa.reconocedores) == 3
+    assert len(etapa.reconocedores) == 6
     assert any(isinstance(x, ReconocedorRun) for x in etapa.reconocedores)
+
+
+def test_tarjeta_invalida_no_se_acepta(etapa):
+    assert not any(
+        h.categoria is Categoria.TARJETA
+        for h in etapa.analizar("Tarjeta invalida 4111 1111 1111 1112")
+    )
