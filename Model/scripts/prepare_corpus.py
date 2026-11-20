@@ -121,6 +121,45 @@ def partes(cuerpo: list[str]) -> list[str]:
     return salida
 
 
+def patrones_atomos():
+    return {
+        "art2_f": (r"(?ms)^f\) Dato personal:.*?(?=^g\) Datos personales sensibles:)",
+                   "Ley 19.628 art. 2 f), sustituido por Ley 21.719 art. primero numeral 5 uno"),
+        "art2_g": (r"(?ms)^g\) Datos personales sensibles:.*?(?=^i\) Fuentes de acceso público:)",
+                   "Ley 19.628 art. 2 g), sustituido por Ley 21.719 art. primero numeral 5 uno"),
+        "art2_l": (r"(?ms)^l\) Seudonimización:.*?(?=^m\) Base de datos personales:)",
+                   "Ley 19.628 art. 2 l), sustituido por Ley 21.719 art. primero numeral 5 tres"),
+        "art3_c": (r"(?ms)^c\) Principio de proporcionalidad\..*?(?=^d\) Principio de calidad\.)",
+                   "Ley 19.628 art. 3 c), sustituido por Ley 21.719 art. primero numeral 6"),
+        "art3_f": (r"(?ms)^f\) Principio de seguridad\..*?(?=^g\) Principio de transparencia e información\.)",
+                   "Ley 19.628 art. 3 f), sustituido por Ley 21.719 art. primero numeral 6"),
+    }
+
+
+def extraer_atomos(markdown: str, documento: dict) -> tuple[list[dict], str]:
+    """Extrae literales de los numerales reformatorios y evita indexarlos otra vez."""
+    atomos = []
+    spans = []
+    for fragmento_id, (patron, localizador) in patrones_atomos().items():
+        encontrado = re.search(patron, markdown)
+        if not encontrado:
+            raise ValueError(f"No se encontró la disposición normativa {fragmento_id}")
+        texto = limpiar_markdown(encontrado[0])
+        atomos.append(dict(
+            id=fragmento_id, documento="ley21719", tipo_fuente="legislacion_chilena",
+            archivo=documento["nombre"], localizador=localizador,
+            encabezado=fragmento_id, contexto="Ley 21.719 / artículo primero",
+            version=documento["version"], vigencia_desde=documento["vigencia_desde"],
+            vigencia_hasta=documento["vigencia_hasta"], estado=documento["estado"],
+            etapa_normativa="reforma_con_vigencia_diferida",
+            texto=f"{localizador}. {texto}"))
+        spans.append(encontrado.span())
+    restante = markdown
+    for inicio, fin in sorted(spans, reverse=True):
+        restante = restante[:inicio] + "\n\n" + restante[fin:]
+    return atomos, restante
+
+
 def construir(directorio_fuentes: Path) -> dict:
     archivos = [directorio_fuentes / "Ley-19628.md", directorio_fuentes / "Ley-21719.md"]
     if any(not p.is_file() for p in archivos):
@@ -131,12 +170,42 @@ def construir(directorio_fuentes: Path) -> dict:
         doc = metadatos_documento(path, path.name)
         documentos.append(doc)
         markdown = path.read_text(encoding="utf-8")
-        for (nivel, titulo, ruta), cuerpo, ordinal in secciones(markdown):
+        if doc["id"] == "ley21719":
+            atomos, markdown_generico = extraer_atomos(markdown, doc)
+            fragmentos.extend(atomos)
+            # El texto base permanece disponible hasta su fecha de reemplazo; la
+            # reforma se identifica en metadatos como una capa normativa distinta.
+            doc["etapa_normativa"] = "reforma_con_vigencia_diferida"
+            texto_16bis = None
+            for (nivel, titulo, ruta), cuerpo, _ordinal in secciones(markdown):
+                if re.match(r"(?i)^art[ií]culo\s+16\s+bis", titulo):
+                    texto_16bis = limpiar_markdown("\n".join(cuerpo))
+                    locator_16bis = (
+                        "Ley 19.628 art. 16 bis, incorporado por Ley 21.719 "
+                        "art. primero numeral 8"
+                    )
+                    break
+            if not texto_16bis:
+                raise ValueError("No se encontró la disposición art16bis")
+            fragmentos.append(dict(
+                id="art16bis", documento="ley21719",
+                tipo_fuente="legislacion_chilena", archivo=doc["nombre"],
+                localizador=locator_16bis, encabezado="Artículo 16 bis.-",
+                contexto="Ley 21.719 / artículo primero numeral 8",
+                version=doc["version"], vigencia_desde=doc["vigencia_desde"],
+                vigencia_hasta=doc["vigencia_hasta"], estado=doc["estado"],
+                etapa_normativa="reforma_con_vigencia_diferida",
+                texto=f"{locator_16bis}. Artículo 16 bis.- {texto_16bis}"))
+        else:
+            markdown_generico = markdown
+        for (nivel, titulo, ruta), cuerpo, ordinal in secciones(markdown_generico):
             # Solo indexa unidades dispositivas, no metadatos, títulos editoriales
             # ni referencias marginales reconstruidas desde el PDF.
             if any("referencias marginales" in t.casefold() for t in ruta):
                 continue
             if not re.match(r"(?i)^art[ií]culo\s+", titulo):
+                continue
+            if doc["id"] == "ley21719" and re.match(r"(?i)^art[ií]culo\s+16\s+bis", titulo):
                 continue
             unidades = partes(cuerpo)
             if not unidades:
@@ -153,6 +222,8 @@ def construir(directorio_fuentes: Path) -> dict:
                     encabezado=titulo, contexto=contexto,
                     version=doc["version"], vigencia_desde=doc["vigencia_desde"],
                     vigencia_hasta=doc["vigencia_hasta"], estado=doc["estado"],
+                    etapa_normativa=("texto_base_antes_de_reforma" if doc["id"] == "ley19628"
+                                     else "reforma_con_vigencia_diferida"),
                     texto=texto_fragmento))
     return dict(version="docs-markdown-v1", documentos=documentos, fragmentos=fragmentos)
 
